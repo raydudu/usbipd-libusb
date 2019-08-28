@@ -91,7 +91,7 @@ void LIBUSB_CALL stub_complete(struct libusb_transfer *trx)
 
 	/* link a urb to the queue of tx. */
 	pthread_mutex_lock(&sdev->priv_lock);
-	if (!sdev->ud.sock) {
+	if (!sdev->ud.sock_fd) {
 		devh_info(trx->dev_handle,
 			"urb discarded in closed connection");
 	} else if (priv->unlinking) {

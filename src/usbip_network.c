@@ -102,7 +102,7 @@ void usbip_net_pack_usb_interface(int pack UNUSED,
 	/* uint8_t members need nothing */
 }
 
-static ssize_t usbip_net_xmit(struct usbip_sock *sock, void *buff,
+static ssize_t usbip_net_xmit(int sock_fd, void *buff,
 			      size_t bufflen, int sending)
 {
 	ssize_t nbytes;
@@ -113,17 +113,9 @@ static ssize_t usbip_net_xmit(struct usbip_sock *sock, void *buff,
 
 	do {
 		if (sending) {
-			if (sock->send)
-				nbytes = sock->send(sock->arg, buff, bufflen);
-			else
-				nbytes = __send(sock->fd, buff, bufflen, 0);
+            nbytes = send(sock_fd, buff, bufflen, 0);
 		} else {
-			if (sock->recv)
-				nbytes = sock->recv(sock->arg, buff, bufflen,
-						    1);
-			else
-				nbytes = __recv(sock->fd, buff, bufflen,
-						MSG_WAITALL);
+            nbytes = recv(sock_fd, buff, bufflen,MSG_WAITALL);
 		}
 
 		if (nbytes <= 0) {
@@ -141,17 +133,17 @@ static ssize_t usbip_net_xmit(struct usbip_sock *sock, void *buff,
 	return total;
 }
 
-ssize_t usbip_net_recv(struct usbip_sock *sock, void *buff, size_t bufflen)
+ssize_t usbip_net_recv(int sock_fd, void *buff, size_t bufflen)
 {
-	return usbip_net_xmit(sock, buff, bufflen, 0);
+	return usbip_net_xmit(sock_fd, buff, bufflen, 0);
 }
 
-ssize_t usbip_net_send(struct usbip_sock *sock, void *buff, size_t bufflen)
+ssize_t usbip_net_send(int sock_fd, void *buff, size_t bufflen)
 {
-	return usbip_net_xmit(sock, buff, bufflen, 1);
+	return usbip_net_xmit(sock_fd, buff, bufflen, 1);
 }
 
-int usbip_net_send_op_common(struct usbip_sock *sock,
+int usbip_net_send_op_common(int sock_fd,
 			     uint32_t code, uint32_t status)
 {
 	struct op_common op_common;
@@ -165,7 +157,7 @@ int usbip_net_send_op_common(struct usbip_sock *sock,
 
 	PACK_OP_COMMON(1, &op_common);
 
-	rc = usbip_net_send(sock, &op_common, sizeof(op_common));
+	rc = usbip_net_send(sock_fd, &op_common, sizeof(op_common));
 	if (rc < 0) {
 		dbg("usbip_net_send failed: %d", rc);
 		return -1;
@@ -197,14 +189,14 @@ static const char *op_common_strerror(uint32_t status)
 	return "unknown error";
 }
 
-int usbip_net_recv_op_common(struct usbip_sock *sock, uint16_t *code)
+int usbip_net_recv_op_common(int sock_fd, uint16_t *code)
 {
 	struct op_common op_common;
 	int rc;
 
 	memset(&op_common, 0, sizeof(op_common));
 
-	rc = usbip_net_recv(sock, &op_common, sizeof(op_common));
+	rc = usbip_net_recv(sock_fd, &op_common, sizeof(op_common));
 	if (rc < 0) {
 		dbg("usbip_net_recv failed: %d", rc);
 		goto err;
@@ -247,7 +239,7 @@ int usbip_net_set_reuseaddr(int sockfd)
 	const int val = 1;
 	int ret;
 
-	ret = __setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
+	ret = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
 	if (ret < 0)
 		dbg("setsockopt: SO_REUSEADDR");
 
@@ -259,7 +251,7 @@ int usbip_net_set_nodelay(int sockfd)
 	const int val = 1;
 	int ret;
 
-	ret = __setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &val, sizeof(val));
+	ret = setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &val, sizeof(val));
 	if (ret < 0)
 		dbg("setsockopt: TCP_NODELAY");
 
@@ -271,7 +263,7 @@ int usbip_net_set_keepalive(int sockfd)
 	const int val = 1;
 	int ret;
 
-	ret = __setsockopt(sockfd, SOL_SOCKET, SO_KEEPALIVE, &val, sizeof(val));
+	ret = setsockopt(sockfd, SOL_SOCKET, SO_KEEPALIVE, &val, sizeof(val));
 	if (ret < 0)
 		dbg("setsockopt: SO_KEEPALIVE");
 
@@ -283,7 +275,7 @@ int usbip_net_set_v6only(int sockfd)
 	const int val = 1;
 	int ret;
 
-	ret = __setsockopt(sockfd, IPPROTO_IPV6, IPV6_V6ONLY, &val,
+	ret = setsockopt(sockfd, IPPROTO_IPV6, IPV6_V6ONLY, &val,
 			   sizeof(val));
 	if (ret < 0)
 		dbg("setsockopt: IPV6_V6ONLY");
@@ -291,85 +283,6 @@ int usbip_net_set_v6only(int sockfd)
 	return ret;
 }
 
-/*
- * IPv6 Ready
- */
-static struct usbip_sock *net_tcp_open(const char *hostname,
-				       const char *service,
-				       void *opt UNUSED)
-{
-	struct addrinfo hints, *res, *rp;
-	int sockfd;
-	struct usbip_sock *sock;
-	int ret;
-
-	socket_start();
-
-	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-
-	/* get all possible addresses */
-	ret = getaddrinfo(hostname, service, &hints, &res);
-	if (ret < 0) {
-		dbg("getaddrinfo: %s service %s: %s", hostname, service,
-		    usbip_net_gai_strerror(ret));
-		goto err_stop;
-	}
-
-	/* try the addresses */
-	for (rp = res; rp; rp = rp->ai_next) {
-		sockfd = socket(rp->ai_family, rp->ai_socktype,
-				rp->ai_protocol);
-		if (sockfd < 0)
-			continue;
-
-		/* should set TCP_NODELAY for usbip */
-		usbip_net_set_nodelay(sockfd);
-		/* TODO: write code for heartbeat */
-		usbip_net_set_keepalive(sockfd);
-
-		if (connect(sockfd, rp->ai_addr, rp->ai_addrlen) == 0)
-			break;
-
-		socket_close(sockfd);
-	}
-
-	freeaddrinfo(res);
-
-	if (!rp)
-		goto err_stop;
-
-	sock = (struct usbip_sock *)malloc(sizeof(struct usbip_sock));
-	if (!sock) {
-		dbg("Fail to malloc usbip_sock");
-		goto err_close;
-	}
-	usbip_sock_init(sock, sockfd, NULL, NULL, NULL, NULL);
-
-	return sock;
-
-err_close:
-	socket_close(sockfd);
-err_stop:
-	socket_stop();
-	return NULL;
-}
-
-static void net_tcp_close(struct usbip_sock *sock)
-{
-	if (sock->shutdown)
-		sock->shutdown(sock->arg);
-	else
-		socket_close(sock->fd);
-	free(sock);
-	socket_stop();
-}
-
-void usbip_net_tcp_conn_init(void)
-{
-	usbip_conn_init(net_tcp_open, net_tcp_close, NULL);
-}
 
 static const char *gai_unknown_error = "?";
 

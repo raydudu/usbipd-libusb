@@ -760,7 +760,7 @@ static int claim_interfaces(libusb_device_handle *dev_handle, int num_ifs,
 	}
 	return 0;
 }
-int usbip_export_device(struct usbip_exported_device *edev, struct usbip_sock *sock) {
+int usbip_export_device(struct usbip_exported_device *edev, int sock_fd) {
 	struct stub_device *sdev;
 	struct stub_edev_data *edev_data = edev2edev_data(edev);
 	int ret;
@@ -789,7 +789,7 @@ int usbip_export_device(struct usbip_exported_device *edev, struct usbip_sock *s
 		goto err_close_lib;
 	}
 
-	sdev->ud.sock = sock;
+	sdev->ud.sock_fd = sock_fd;
 
 	return 0;
 
@@ -842,11 +842,8 @@ static void stub_join(struct stub_device *sdev)
 	pthread_join(sdev->rx, NULL);
 }
 
-int usbip_try_transfer(struct usbip_exported_device *edev, struct usbip_sock *sock) {
+int usbip_try_transfer(struct usbip_exported_device *edev, int sock_fd) {
 	struct stub_device *sdev = edev2sdev(edev);
-
-	if (!sock)
-		return -1;
 
 	if (stub_start(sdev)) {
 		err("start driver-libusb");

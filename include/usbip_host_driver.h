@@ -34,10 +34,10 @@ struct usbip_exported_device *usbip_get_device(struct usbip_exported_devices *ed
 int usbip_list_devices(struct usbip_usb_device **udevs);
 //    return usbip_hdriver->ops.list_devices(udevs);
 
-int usbip_export_device(struct usbip_exported_device *edev, struct usbip_sock *sock);
+int usbip_export_device(struct usbip_exported_device *edev, int sock_fd);
 //    return usbip_hdriver->ops.export_device(edev, sock);
 
-int usbip_try_transfer(struct usbip_exported_device *edev, struct usbip_sock *sock);
+int usbip_try_transfer(struct usbip_exported_device *edev, int sock_fd);
 //    return usbip_hdriver->ops.try_transfer(edev, sock);
 
 int usbip_has_transferred(void);

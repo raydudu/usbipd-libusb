@@ -357,7 +357,7 @@ struct usbip_device {
 	/* lock for status */
 	pthread_mutex_t lock;
 
-	struct usbip_sock *sock;
+	int sock_fd;
 
 	unsigned long event;
 	pthread_t eh;

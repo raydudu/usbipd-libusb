@@ -26,20 +26,10 @@
  *
  */
 
-#include "usbip_config.h"
-
 #include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#ifndef USBIP_OS_NO_DIRENT_H
-#include <dirent.h>
-#endif
 #include <string.h>
 #include <errno.h>
 #include <stdlib.h>
-#ifndef USBIP_OS_NO_UNISTD_H
-#include <unistd.h>
-#endif
 #include <stdio.h>
 #include <ctype.h>
 

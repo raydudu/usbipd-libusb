@@ -31,7 +31,7 @@ extern char *usbip_default_pid_file;
 
 struct usbipd_recv_pdu_op {
 	uint16_t code;
-	int (*proc)(struct usbip_sock *sock,
+	int (*proc)(int sock_fd,
 		    const char *host, const char *port);
 };
 

@@ -26,18 +26,10 @@
 
 #include <errno.h>
 
-#ifndef USBIP_OS_NO_SYS_SOCKET
 #include <netdb.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <arpa/inet.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
-#endif
-
-#ifdef HAVE_LIBWRAP
-#include <tcpd.h>
-#endif
 
 #include <getopt.h>
 #include <signal.h>
@@ -107,24 +99,23 @@ static void usbipd_help(void)
 	printf(usbipd_help_string, usbip_progname, usbip_default_pid_file);
 }
 
-static int __recv_pdu(struct usbip_sock *sock,
-		      const char *host, const char *port)
+int usbipd_recv_pdu(int sock_fd, const char *host, const char *port)
 {
 	uint16_t code = OP_UNSPEC;
 	int ret;
 	struct usbipd_recv_pdu_op *op;
 
-	ret = usbip_net_recv_op_common(sock, &code);
+	ret = usbip_net_recv_op_common(sock_fd, &code);
 	if (ret < 0) {
 		dbg("could not receive opcode: %#0x", code);
 		return -1;
 	}
 
-	info("received request: %#0x(%d)", code, sock->fd);
+	info("received request: %#0x(%d)", code, sock_fd);
 	for (op = usbipd_recv_pdu_ops; op->code != OP_UNSPEC; op++) {
 		if (op->code == code) {
 			if (op->proc)
-				ret = (*(op->proc))(sock, host, port);
+				ret = (*(op->proc))(sock_fd, host, port);
 			else {
 				err("received an unsupported opcode: %#0x",
 				    code);
@@ -139,44 +130,12 @@ static int __recv_pdu(struct usbip_sock *sock,
 	}
 
 	if (ret == 0)
-		info("request %#0x(%d): complete", code, sock->fd);
+		info("request %#0x(%d): complete", code, sock_fd);
 	else
-		info("request %#0x(%d): failed", code, sock->fd);
+		info("request %#0x(%d): failed", code, sock_fd);
 
 	return ret;
 }
-
-int usbipd_recv_pdu(struct usbip_sock *sock, const char *host, const char *port)
-{
-	int ret;
-
-#ifndef USBIP_WITH_LIBUSB
-	usbip_ux_setup(sock);
-#endif
-	ret = __recv_pdu(sock, host, port);
-
-#ifndef USBIP_WITH_LIBUSB
-	usbip_ux_cleanup(sock);
-#endif
-	return ret;
-}
-
-#ifndef USBIP_AS_LIBRARY
-#ifdef HAVE_LIBWRAP
-static int tcpd_auth(int connfd)
-{
-	struct request_info request;
-	int rc;
-
-	request_init(&request, RQ_DAEMON, usbip_progname, RQ_FILE, connfd, 0);
-	fromhost(&request);
-	rc = hosts_access(&request);
-	if (rc == 0)
-		return -1;
-
-	return 0;
-}
-#endif
 
 static int do_accept(int listenfd, char *host, int host_len,
 				   char *port, int port_len)
@@ -199,14 +158,6 @@ static int do_accept(int listenfd, char *host, int host_len,
 	if (rc)
 		err("getnameinfo: %s", usbip_net_gai_strerror(rc));
 
-#ifdef HAVE_LIBWRAP
-	rc = tcpd_auth(connfd);
-	if (rc < 0) {
-		info("denied access from %s", host);
-		socket_close(connfd);
-		return -1;
-	}
-#endif
 	info("connection from %s:%s", host, port);
 
 	/* should set TCP_NODELAY for usbip */
@@ -224,11 +175,9 @@ struct request_data {
 static void *__process_request(void *arg)
 {
 	struct request_data *data = (struct request_data *)arg;
-	struct usbip_sock sock;
 
-	usbip_sock_init(&sock, data->connfd, NULL, NULL, NULL, NULL);
-	usbipd_recv_pdu(&sock, data->host, data->port);
-	socket_close(data->connfd);
+	usbipd_recv_pdu(data->connfd, data->host, data->port);
+	close(data->connfd);
 	free(data);
 	pthread_exit(NULL);
 }
@@ -267,7 +216,7 @@ int process_request(int listenfd)
 		return -1;
 	childpid = fork();
 	if (childpid == 0) {
-		socket_close(listenfd);
+		close(listenfd);
 		usbip_sock_init(&sock, connfd, NULL, NULL, NULL, NULL);
 		usbipd_recv_pdu(&sock, host, port);
 		socket_close(connfd);
@@ -325,7 +274,7 @@ static int listen_all_addrinfo(struct addrinfo *ai_head, int sockfdlist[],
 		if (ret < 0) {
 			err("bind: %s: %d (%s)",
 			    ai_buf, errno, strerror(errno));
-			socket_close(sock);
+			close(sock);
 			continue;
 		}
 
@@ -333,7 +282,7 @@ static int listen_all_addrinfo(struct addrinfo *ai_head, int sockfdlist[],
 		if (ret < 0) {
 			err("listen: %s: %d (%s)",
 			    ai_buf, errno, strerror(errno));
-			socket_close(sock);
+			close(sock);
 			continue;
 		}
 
@@ -367,7 +316,6 @@ static struct addrinfo *do_getaddrinfo(const char *host, int ai_family)
 static void signal_handler(int i)
 {
 	dbg("received '%s' signal", strsignal(i));
-	usbip_break_all_connections();
 }
 
 static void set_signal(void)
@@ -439,8 +387,6 @@ static int do_standalone_mode(int daemonize, int ipv4, int ipv6)
 
 	info("starting %s (%s)", usbip_progname, usbip_version_string);
 
-	socket_start();
-
 	/*
 	 * To suppress warnings on systems with bindv6only disabled
 	 * (default), we use seperate sockets for IPv6 and IPv4 and set
@@ -503,12 +449,10 @@ static int do_standalone_mode(int daemonize, int ipv4, int ipv6)
 	info("shutting down %s", usbip_progname);
 	free(fds);
 	usbip_driver_close();
-	socket_stop();
 
 	return 0;
 
 err_socket_stop:
-	socket_stop();
 err_driver_close:
 	usbip_driver_close();
 err_out:
@@ -549,11 +493,6 @@ int main(int argc, char *argv[])
 
 	usbip_use_stderr = 1;
 	usbip_use_syslog = 0;
-
-#ifndef USBIP_WITH_LIBUSB
-	if (geteuid() != 0)
-		err("not running as root?");
-#endif
 
 	cmd = cmd_standalone_mode;
 
@@ -631,4 +570,3 @@ int main(int argc, char *argv[])
 err_out:
 	return (rc > -1 ? EXIT_SUCCESS : EXIT_FAILURE);
 }
-#endif /* !USBIP_AS_LIBRARY */

@@ -12,7 +12,7 @@
 #include <libudev.h>
 #endif
 
-#include <linux/usbip_api.h>
+#include <usbip_api.h>
 
 #include <stdint.h>
 #include <stdio.h>
@@ -28,7 +28,7 @@
 #endif
 #ifdef __linux__
 #include <linux/usb/ch9.h>
-#include <linux/usbip.h>
+#include <usbip.h>
 #endif
 
 #ifndef USBIDS_FILE
@@ -149,13 +149,6 @@ struct usbip_usb_device {
 
 void dump_usb_interface(struct usbip_usb_interface *);
 void dump_usb_device(struct usbip_usb_device *);
-#ifndef USBIP_WITH_LIBUSB
-int read_usb_device(struct udev_device *sdev, struct usbip_usb_device *udev);
-int read_attr_value(struct udev_device *dev, const char *name,
-		    const char *format);
-int read_usb_interface(struct usbip_usb_device *udev, int i,
-		       struct usbip_usb_interface *uinf);
-#endif
 
 const char *usbip_speed_string(int num);
 const char *usbip_status_string(int32_t status);
@@ -166,30 +159,5 @@ void usbip_names_get_product(char *buff, size_t size, uint16_t vendor,
 			     uint16_t product);
 void usbip_names_get_class(char *buff, size_t size, uint8_t clazz,
 			   uint8_t subclass, uint8_t protocol);
-
-extern struct usbip_connection_operations usbip_conn_ops;
-
-static inline struct usbip_sock *
-usbip_conn_open(const char *host, const char *port)
-{
-	struct usbip_sock *sock;
-
-	sock = usbip_conn_ops.open(host, port, usbip_conn_ops.opt);
-
-#ifndef USBIP_WITH_LIBUSB
-	if (sock)
-		usbip_ux_setup(sock);
-#endif
-	return sock;
-}
-
-static inline void
-usbip_conn_close(struct usbip_sock *sock)
-{
-	usbip_conn_ops.close(sock);
-#ifndef USBIP_WITH_LIBUSB
-	usbip_ux_cleanup(sock);
-#endif
-}
 
 #endif /* __USBIP_COMMON_H */

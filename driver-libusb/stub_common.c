@@ -396,16 +396,12 @@ int usbip_sendmsg(struct usbip_device *ud, struct kvec *vec, size_t num)
 					iov->iov_len);
 		}
 
-		if (ud->sock->send)
-			result = ud->sock->send(ud->sock->arg, iov->iov_base,
-						iov->iov_len);
-		else
-			result = send(ud->sock->fd, (char *)(iov->iov_base),
-						iov->iov_len, 0);
+        result = send(ud->sock_fd, (char *)(iov->iov_base),
+                      iov->iov_len, 0);
 
 		if (result < 0) {
 			pr_debug("send err sock %d buf %p size %zu ",
-				ud->sock->fd, iov->iov_base, iov->iov_len);
+                     ud->sock_fd, iov->iov_base, iov->iov_len);
 			pr_debug("ret %d total %zd\n",
 				result, total);
 			return total;
@@ -427,23 +423,20 @@ int usbip_recv(struct usbip_device *ud, void *buf, int size)
 
 	usbip_dbg_xmit("enter usbip_recv\n");
 
-	if (!ud->sock || !buf || !size) {
+	if (!ud->sock_fd || !buf || !size) {
 		pr_err("invalid arg, sock %d buff %p size %d\n",
-			ud->sock->fd, buf, size);
+               ud->sock_fd, buf, size);
 		errno = EINVAL;
 		return -1;
 	}
 
 	do {
 		usbip_dbg_xmit("receiving %d\n", size);
-		if (ud->sock->recv)
-			result = ud->sock->recv(ud->sock->arg, bp, size, 0);
-		else
-			result = recv(ud->sock->fd, bp, size, 0);
+        result = recv(ud->sock_fd, bp, size, 0);
 
 		if (result <= 0) {
 			pr_debug("receive err sock %d buf %p size %u ",
-				ud->sock->fd, buf, size);
+                     ud->sock_fd, buf, size);
 			pr_debug("ret %d total %d\n",
 				result, total);
 			goto err;

@@ -11,15 +11,6 @@
 
 #include <stdint.h>
 
-#ifndef USBIP_OS_NO_SYS_SOCKET
-#define socket_start() do {} while (0)
-#define socket_stop() do {} while (0)
-#define socket_close(sd) close(sd)
-#define __send send
-#define __recv recv
-#define __setsockopt setsockopt
-#endif /* !USBIP_OS_NO_SYS_SOCKET */
-
 extern int usbip_port;
 extern char *usbip_port_string;
 void usbip_setup_port_number(char *arg);
@@ -197,11 +188,11 @@ void usbip_net_pack_uint16_t(int pack, uint16_t *num);
 void usbip_net_pack_usb_device(int pack, struct usbip_usb_device *udev);
 void usbip_net_pack_usb_interface(int pack, struct usbip_usb_interface *uinf);
 
-ssize_t usbip_net_recv(struct usbip_sock *sock, void *buff, size_t bufflen);
-ssize_t usbip_net_send(struct usbip_sock *sock, void *buff, size_t bufflen);
-int usbip_net_send_op_common(struct usbip_sock *sock, uint32_t code,
+ssize_t usbip_net_recv(int sock_fd, void *buff, size_t bufflen);
+ssize_t usbip_net_send(int sock_fd, void *buff, size_t bufflen);
+int usbip_net_send_op_common(int sock_fd, uint32_t code,
 			     uint32_t status);
-int usbip_net_recv_op_common(struct usbip_sock *sock, uint16_t *code);
+int usbip_net_recv_op_common(int sock_fd, uint16_t *code);
 int usbip_net_set_reuseaddr(int sockfd);
 int usbip_net_set_nodelay(int sockfd);
 int usbip_net_set_keepalive(int sockfd);

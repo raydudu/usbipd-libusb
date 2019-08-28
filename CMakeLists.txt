@@ -8,19 +8,16 @@ find_library(LIBUSB_LIBRARY NAMES usb-1.0 PATH_SUFFIXES "lib" "lib32" "lib64")
 
 include_directories(include libsrc)
 
-add_definitions(-DDEBUG -DUSBIP_WITH_LIBUSB -DHAVE_CONFIG_H)
+add_definitions(-DDEBUG)
 
 add_executable(${PROJECT_NAME}
-        include/linux/usbip.h
-        include/linux/usbip_api.h
+        include/usbip.h
+        include/usbip_api.h
         include/list.h
         libsrc/names.c
         libsrc/names.h
-        libsrc/sysfs_utils.c
-        libsrc/sysfs_utils.h
         libsrc/usbip_common.c
         libsrc/usbip_common.h
-        libsrc/usbip_config.h
         src/usbip_network.c
         src/usbip_network.h
         src/usbipd_dev.c

@@ -27,39 +27,6 @@ extern "C"
 {
 #endif
 
-/*
- * Using int rather than size_t and ssize_t for cross OS portability.
- */
-struct usbip_sock {
-	int fd;
-	void *arg;
-	void *ux;
-	int (*send)(void *arg, void *buf, int len);
-	int (*recv)(void *arg, void *buf, int len, int wait_all);
-	void (*shutdown)(void *arg);
-};
-
-void usbip_sock_init(struct usbip_sock *sock, int fd, void *arg,
-	int (*send)(void *arg, void *buf, int len),
-	int (*recv)(void *arg, void *buf, int len, int wait_all),
-	void (*shutdown)(void *arg));
-
-struct usbip_connection_operations {
-	struct usbip_sock *(*open)(const char *host, const char *port,
-				   void *opt);
-	void (*close)(struct usbip_sock *sock);
-	void *opt;
-};
-
-void usbip_conn_init(
-	struct usbip_sock *(*open)(const char *host, const char *port,
-				   void *opt),
-	void (*close)(struct usbip_sock *sock),
-	void *opt);
-
-void usbip_break_all_connections(void);
-void usbip_break_connection(struct usbip_sock *sock);
-
 void usbip_set_use_debug(int val);
 void usbip_set_use_stderr(int val);
 void usbip_set_use_syslog(int val);
@@ -68,10 +35,8 @@ void usbip_set_use_syslog(int val);
 void usbip_set_debug_flags(unsigned long flags);
 #endif
 
-int usbipd_recv_pdu(struct usbip_sock *sock,
+int usbipd_recv_pdu(int sock_fd,
 		    const char *host, const char *port);
-int usbipd_driver_open(void);
-void usbipd_driver_close(void);
 
 #ifdef __cplusplus
 }

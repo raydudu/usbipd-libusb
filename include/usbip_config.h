@@ -18,53 +18,26 @@
 #ifndef __USBIP_CONFIG_H
 #define __USBIP_CONFIG_H
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
+/* binary-coded decimal version number */
+#define USBIP_VERSION 0x00000111
 
-#if !HAVE_DAEMON
+/* Version number of package */
+#define VERSION "2.0"
+
+/* Define to the full name and version of this package. */
+#define PACKAGE_STRING "usbip-libusb 2.0"
+#define PACKAGE "usbip-libusb"
+
 #define USBIP_OS_NO_DAEMON
-#endif
-
-#if HAVE_DECL_CONTAINER_OF
-#define USBIP_OS_HAVE_CONTAINER_OF
-#endif
-
-#if !HAVE_DECL_P_TMPDIR
-#define USBIP_OS_NO_P_TMPDIR
-#endif
-
-#if !HAVE_DIRENT_H
-#define USBIP_OS_NO_DIRENT_H
-#endif
-
-#if !HAVE_FORK
+//#define USBIP_OS_HAVE_CONTAINER_OF // list.h config
+//#define USBIP_OS_NO_P_TMPDIR //TODO what a heck is get_tmp_dir(...)
 #define USBIP_OS_NO_FORK
-#endif
+//#define USBIP_OS_NO_PTHREAD_H //TODO Just removes includes, doesn't switch anything else, might be useful in future
+//#define USBIP_OS_NO_POLL_H //TODO Just removes includes, doesn't switch anything else, might be useful in future
+//#define USBIP_OS_NO_SYS_SOCKET
+//#define USBIP_OS_NO_SYSLOG
+//#define USBIP_OS_NO_UNISTD_H
+#define USBIP_WITH_LIBUSB
 
-#if !HAVE_LIBUDEV_H
-#define USBIP_OS_NO_LIBUDEV
-#endif
-
-#if !HAVE_PTHREAD_H
-#define USBIP_OS_NO_PTHREAD_H
-#endif
-
-#if !HAVE_POLL_H
-#define USBIP_OS_NO_POLL_H
-#endif
-
-#if !HAVE_SYS_SOCKET_H
-#define USBIP_OS_NO_SYS_SOCKET
-#endif
-
-#if !HAVE_SYSLOG
-#define USBIP_OS_NO_SYSLOG
-#endif
-
-#if !HAVE_UNISTD_H
-#define USBIP_OS_NO_UNISTD_H
-#endif
-
-#endif /* HAVE_CONFIG_H */
 
 #endif /* !__USBIP_CONFIG_H */

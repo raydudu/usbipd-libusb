@@ -25,10 +25,10 @@
 #include "usbipd.h"
 #include "list.h"
 
-char *usbip_progname = "usbipd";
+char *usbip_progname = PACKAGE;
 char *usbip_default_pid_file = "/var/run/usbipd";
 
-static int recv_request_import(struct usbip_sock *sock,
+static int recv_request_import(int sock_fd,
 			       const char *host, const char *port)
 {
 	struct usbip_exported_devices edevs;
@@ -50,7 +50,7 @@ static int recv_request_import(struct usbip_sock *sock,
 
 	memset(&req, 0, sizeof(req));
 
-	rc = usbip_net_recv(sock, &req, sizeof(req));
+	rc = usbip_net_recv(sock_fd, &req, sizeof(req));
 	if (rc < 0) {
 		dbg("usbip_net_recv failed: import request");
 		goto err_free_edevs;
@@ -65,7 +65,7 @@ static int recv_request_import(struct usbip_sock *sock,
 
 	if (found) {
 		/* export device needs a TCP/IP socket descriptor */
-		rc = usbip_export_device(edev, sock);
+		rc = usbip_export_device(edev, sock_fd);
 		if (rc < 0)
 			error = 1;
 	} else {
@@ -73,8 +73,8 @@ static int recv_request_import(struct usbip_sock *sock,
 		error = 1;
 	}
 
-	rc = usbip_net_send_op_common(sock, OP_REP_IMPORT,
-				      (!error ? ST_OK : ST_NA));
+	rc = usbip_net_send_op_common(sock_fd, OP_REP_IMPORT,
+                                  (!error ? ST_OK : ST_NA));
 	if (rc < 0) {
 		dbg("usbip_net_send_op_common failed: %#0x", OP_REP_IMPORT);
 		goto err_free_edevs;
@@ -88,7 +88,7 @@ static int recv_request_import(struct usbip_sock *sock,
 	memcpy(&pdu_udev, &edev->udev, sizeof(pdu_udev));
 	usbip_net_pack_usb_device(1, &pdu_udev);
 
-	rc = usbip_net_send(sock, &pdu_udev, sizeof(pdu_udev));
+	rc = usbip_net_send(sock_fd, &pdu_udev, sizeof(pdu_udev));
 	if (rc < 0) {
 		dbg("usbip_net_send failed: devinfo");
 		goto err_free_edevs;
@@ -96,7 +96,7 @@ static int recv_request_import(struct usbip_sock *sock,
 
 	dbg("import request busid %s: complete", req.busid);
 
-	rc = usbip_try_transfer(edev, sock);
+	rc = usbip_try_transfer(edev, sock_fd);
 	if (rc < 0) {
 		err("try transfer");
 		goto err_free_edevs;
@@ -111,7 +111,7 @@ err_out:
 	return -1;
 }
 
-static int send_reply_devlist(struct usbip_sock *sock)
+static int send_reply_devlist(int sock_fd)
 {
 	struct usbip_exported_devices edevs;
 	struct usbip_exported_device *edev;
@@ -130,14 +130,14 @@ static int send_reply_devlist(struct usbip_sock *sock)
 	reply.ndev = edevs.ndevs;
 	info("importable devices: %d", reply.ndev);
 
-	rc = usbip_net_send_op_common(sock, OP_REP_DEVLIST, ST_OK);
+	rc = usbip_net_send_op_common(sock_fd, OP_REP_DEVLIST, ST_OK);
 	if (rc < 0) {
 		dbg("usbip_net_send_op_common failed: %#0x", OP_REP_DEVLIST);
 		goto err_free_edevs;
 	}
 	PACK_OP_DEVLIST_REPLY(1, &reply);
 
-	rc = usbip_net_send(sock, &reply, sizeof(reply));
+	rc = usbip_net_send(sock_fd, &reply, sizeof(reply));
 	if (rc < 0) {
 		dbg("usbip_net_send failed: %#0x", OP_REP_DEVLIST);
 		goto err_free_edevs;
@@ -149,7 +149,7 @@ static int send_reply_devlist(struct usbip_sock *sock)
 		memcpy(&pdu_udev, &edev->udev, sizeof(pdu_udev));
 		usbip_net_pack_usb_device(1, &pdu_udev);
 
-		rc = usbip_net_send(sock, &pdu_udev, sizeof(pdu_udev));
+		rc = usbip_net_send(sock_fd, &pdu_udev, sizeof(pdu_udev));
 		if (rc < 0) {
 			dbg("usbip_net_send failed: pdu_udev");
 			goto err_free_edevs;
@@ -160,8 +160,8 @@ static int send_reply_devlist(struct usbip_sock *sock)
 			memcpy(&pdu_uinf, &edev->uinf[i], sizeof(pdu_uinf));
 			usbip_net_pack_usb_interface(1, &pdu_uinf);
 
-			rc = usbip_net_send(sock, &pdu_uinf,
-					sizeof(pdu_uinf));
+			rc = usbip_net_send(sock_fd, &pdu_uinf,
+                                sizeof(pdu_uinf));
 			if (rc < 0) {
 				err("usbip_net_send failed: pdu_uinf");
 				goto err_free_edevs;
@@ -178,7 +178,7 @@ err_out:
 	return -1;
 }
 
-static int recv_request_devlist(struct usbip_sock *sock,
+static int recv_request_devlist(int sock_fd,
 				const char *host, const char *port)
 {
 	int rc;
@@ -186,7 +186,7 @@ static int recv_request_devlist(struct usbip_sock *sock,
 	(void)host;
 	(void)port;
 
-	rc = send_reply_devlist(sock);
+	rc = send_reply_devlist(sock_fd);
 	if (rc < 0) {
 		dbg("send_reply_devlist failed");
 		return -1;
