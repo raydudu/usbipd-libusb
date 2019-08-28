@@ -8,11 +8,6 @@
 
 #include "usbip_config.h"
 
-#ifdef USBIP_WITH_LIBUSB
-#include "usbip_os.h"
-#else
-#include "usbip_ux.h"
-#endif
 #ifndef USBIP_OS_NO_LIBUDEV
 #include <libudev.h>
 #endif

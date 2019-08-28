@@ -40,10 +40,6 @@ static struct portst_string portst_strings[] = {
 	{ SDEV_ST_AVAILABLE,	"Device Available" },
 	{ SDEV_ST_USED,		"Device in Use" },
 	{ SDEV_ST_ERROR,	"Device Error"},
-	{ VDEV_ST_NULL,		"Port Available"},
-	{ VDEV_ST_NOTASSIGNED,	"Port Initializing"},
-	{ VDEV_ST_USED,		"Port in Use"},
-	{ VDEV_ST_ERROR,	"Port Error"},
 	{ 0, NULL}
 };
 

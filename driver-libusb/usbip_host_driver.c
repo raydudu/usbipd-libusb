@@ -18,9 +18,9 @@
 
 #include "usbip_config.h"
 
-#include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
+#include <errno.h>
+
 
 #include "stub.h"
 
@@ -92,13 +92,11 @@ uint8_t stub_get_transfer_flags(uint32_t in)
 	return flags;
 }
 
-static int stub_open(void)
-{
+int usbip_driver_open(void) {
 	return libusb_init(&stub_libusb_ctx);
 }
 
-static void stub_close(void)
-{
+void usbip_driver_close(void) {
 	libusb_exit(stub_libusb_ctx);
 }
 
@@ -322,8 +320,7 @@ static void exported_device_delete(struct usbip_exported_device *edev)
 
 static int stub_find_exported_device(const char *busid);
 
-static int stub_refresh_device_list(struct usbip_exported_devices *edevs)
-{
+int usbip_refresh_device_list(struct usbip_exported_devices *edevs) {
 	int num, i;
 	libusb_device **devs, *dev;
 	struct usbip_exported_device *edev;
@@ -369,8 +366,7 @@ err_out:
 	return -1;
 }
 
-static void stub_free_device_list(struct usbip_exported_devices *edevs)
-{
+int usbip_free_device_list(struct usbip_exported_devices *edevs) {
 	libusb_device **devs = (libusb_device **)edevs->data;
 	struct list_head *i, *tmp;
 	struct usbip_exported_device *edev;
@@ -385,10 +381,7 @@ static void stub_free_device_list(struct usbip_exported_devices *edevs)
 	}
 }
 
-struct usbip_exported_device *stub_get_device(
-			struct usbip_exported_devices *edevs,
-			const char *busid)
-{
+struct usbip_exported_device *usbip_get_device(struct usbip_exported_devices *edevs, const char *busid) {
 	struct list_head *i;
 	struct usbip_exported_device *edev;
 
@@ -409,8 +402,7 @@ static int comp_devices(const void *a, const void *b)
 	return strcmp(da->busid, db->busid);
 }
 
-static int stub_list_devices(struct usbip_usb_device **udevs)
-{
+int usbip_list_devices(struct usbip_usb_device **udevs) {
 	int num, i;
 	int cnt, ret;
 	libusb_device **devs;
@@ -516,13 +508,13 @@ static int edev_mkdir(const char *path)
 	}
 	return 0;
 }
-
+#if 0
 int stub_bind_device(const char *busid)
 {
 	int fd;
 	char path[BIND_MAX_PATH];
 
-	if (stub_open())
+	if (usbip_driver_open())
 		goto err_out;
 
 	if (!stub_find_device(busid)) {
@@ -543,10 +535,10 @@ int stub_bind_device(const char *busid)
 		goto err_close;
 	}
 	close(fd);
-	stub_close();
+    usbip_driver_close();
 	return 0;
 err_close:
-	stub_close();
+    usbip_driver_close();
 err_out:
 	return -1;
 }
@@ -555,7 +547,7 @@ int stub_unbind_device(const char *busid)
 {
 	char path[BIND_MAX_PATH];
 
-	if (stub_open())
+	if (usbip_driver_open())
 		goto err_out;
 
 	edev_get_path(path, busid);
@@ -564,14 +556,14 @@ int stub_unbind_device(const char *busid)
 		err("del edev %s", path);
 		goto err_close;
 	}
-	stub_close();
+    usbip_driver_close();
 	return 0;
 err_close:
-	stub_close();
+    usbip_driver_close();
 err_out:
 	return -1;
 }
-
+#endif
 static int stub_find_exported_device(const char *busid)
 {
 	char path[BIND_MAX_PATH];
@@ -768,10 +760,7 @@ static int claim_interfaces(libusb_device_handle *dev_handle, int num_ifs,
 	}
 	return 0;
 }
-
-static int stub_export_device(struct usbip_exported_device *edev,
-			      struct usbip_sock *sock)
-{
+int usbip_export_device(struct usbip_exported_device *edev, struct usbip_sock *sock) {
 	struct stub_device *sdev;
 	struct stub_edev_data *edev_data = edev2edev_data(edev);
 	int ret;
@@ -853,16 +842,14 @@ static void stub_join(struct stub_device *sdev)
 	pthread_join(sdev->rx, NULL);
 }
 
-static int stub_try_transfer(struct usbip_exported_device *edev,
-			     struct usbip_sock *sock)
-{
+int usbip_try_transfer(struct usbip_exported_device *edev, struct usbip_sock *sock) {
 	struct stub_device *sdev = edev2sdev(edev);
 
 	if (!sock)
 		return -1;
 
 	if (stub_start(sdev)) {
-		err("start stub");
+		err("start driver-libusb");
 		return -1;
 	}
 	stub_join(sdev);
@@ -872,31 +859,8 @@ static int stub_try_transfer(struct usbip_exported_device *edev,
 
 	return 0;
 }
-
-static int stub_has_transferred(void)
-{
+int usbip_has_transferred(void) {
 	return 1;
 }
 
-/* do not use gcc initialization syntax for other compilers */
-struct usbip_host_driver host_driver = {
-	"stub-libusb",
-	{
-		stub_open,
-		stub_close,
-		stub_refresh_device_list,
-		stub_free_device_list,
-		stub_get_device,
-		stub_list_devices,
-		stub_bind_device,
-		stub_unbind_device,
-		stub_export_device,
-		stub_try_transfer,
-		stub_has_transferred,
-		NULL, /* read_device */
-		NULL, /* read_interface */
-		NULL  /* is_my_device */
-	}
-};
 
-struct usbip_host_driver *usbip_hdriver = &host_driver;

@@ -17,10 +17,6 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifdef USBIP_WITH_LIBUSB
-#include "usbip_sock.h"
-#endif
-
 #include "usbip_config.h"
 
 #ifndef USBIP_OS_NO_SYS_SOCKET
@@ -31,10 +27,6 @@
 #endif
 
 #include <string.h>
-
-#ifdef HAVE_LIBWRAP
-#include <tcpd.h>
-#endif
 
 #include "usbip_common.h"
 #include "usbip_network.h"
@@ -299,7 +291,6 @@ int usbip_net_set_v6only(int sockfd)
 	return ret;
 }
 
-#ifndef USBIP_AS_LIBRARY
 /*
  * IPv6 Ready
  */
@@ -379,7 +370,6 @@ void usbip_net_tcp_conn_init(void)
 {
 	usbip_conn_init(net_tcp_open, net_tcp_close, NULL);
 }
-#endif /* !USBIP_AS_LIBRARY */
 
 static const char *gai_unknown_error = "?";
 

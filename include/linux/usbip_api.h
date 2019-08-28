@@ -68,27 +68,10 @@ void usbip_set_use_syslog(int val);
 void usbip_set_debug_flags(unsigned long flags);
 #endif
 
-int usbip_attach_device(const char *host, const char *port, const char *busid);
-int usbip_detach_port(const char *port);
-int usbip_bind_device(const char *busid);
-int usbip_unbind_device(const char *busid);
-int usbip_list_imported_devices(void);
-int usbip_list_importable_devices(const char *host, const char *port);
-int usbip_list_local_devices(int parsable);
-int usbip_connect_device(const char *host, const char *port,
-			 const char *busid);
-int usbip_disconnect_device(const char *host, const char *port,
-			 const char *busid);
-
 int usbipd_recv_pdu(struct usbip_sock *sock,
 		    const char *host, const char *port);
 int usbipd_driver_open(void);
 void usbipd_driver_close(void);
-
-int usbip_hdriver_set(int type);
-
-#define USBIP_HDRIVER_TYPE_HOST		0
-#define USBIP_HDRIVER_TYPE_DEVICE	1
 
 #ifdef __cplusplus
 }

@@ -20,18 +20,9 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifdef USBIP_AS_LIBRARY
-#include "usbipd.h"
-#include "usbip_network.h"
-#else
-
-#ifdef USBIP_WITH_LIBUSB
-#include "usbip_sock.h"
-#endif
-
 #include "usbip_config.h"
 
-#define _GNU_SOURCE
+#define _GNU_SOURCE // Reqired for ppoll(..)
 
 #include <errno.h>
 
@@ -56,6 +47,8 @@
 
 #ifndef USBIP_OS_NO_PTHREAD_H
 #include <pthread.h>
+#include <usbip_host_driver.h>
+
 #endif
 
 #include "usbip_common.h"
@@ -93,7 +86,7 @@ static const char usbipd_help_string[] =
 	"\n"
 #ifdef USBIP_WITH_LIBUSB
 	"       -fHEX, --debug-flags HEX\n"
-	"               Print flags for stub debugging.\n"
+	"               Print flags for driver-libusb debugging.\n"
 	"\n"
 #endif
 	"	-PFILE, --pid FILE\n"
@@ -112,21 +105,6 @@ static const char usbipd_help_string[] =
 static void usbipd_help(void)
 {
 	printf(usbipd_help_string, usbip_progname, usbip_default_pid_file);
-}
-
-#endif /* !USBIP_AS_LIBRARY */
-
-int usbipd_driver_open(void)
-{
-	if (usbipd_driver_ops.open)
-		return (*(usbipd_driver_ops.open))();
-	return 0;
-}
-
-void usbipd_driver_close(void)
-{
-	if (usbipd_driver_ops.close)
-		(*(usbipd_driver_ops.close))();
 }
 
 static int __recv_pdu(struct usbip_sock *sock,
@@ -443,7 +421,7 @@ static int do_standalone_mode(int daemonize, int ipv4, int ipv6)
 	struct timespec timeout;
 	sigset_t sigmask;
 
-	if (usbipd_driver_open())
+	if (usbip_driver_open())
 		goto err_out;
 
 	if (daemonize) {
@@ -524,7 +502,7 @@ static int do_standalone_mode(int daemonize, int ipv4, int ipv6)
 
 	info("shutting down %s", usbip_progname);
 	free(fds);
-	usbipd_driver_close();
+	usbip_driver_close();
 	socket_stop();
 
 	return 0;
@@ -532,7 +510,7 @@ static int do_standalone_mode(int daemonize, int ipv4, int ipv6)
 err_socket_stop:
 	socket_stop();
 err_driver_close:
-	usbipd_driver_close();
+	usbip_driver_close();
 err_out:
 	return -1;
 }
@@ -622,11 +600,6 @@ int main(int argc, char *argv[])
 		case 'v':
 			cmd = cmd_version;
 			break;
-#ifndef USBIP_DAEMON_APP
-		case 'e':
-			usbip_hdriver_set(USBIP_HDRIVER_TYPE_DEVICE);
-			break;
-#endif
 		case '?':
 			usbipd_help();
 		default:

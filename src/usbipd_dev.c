@@ -17,20 +17,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "usbip_config.h"
-
-#define _GNU_SOURCE
-
-#include <errno.h>
-
-#ifndef USBIP_OS_NO_SYS_SOCKET
-#include <netdb.h>
 #include <sys/types.h>
-#include <sys/stat.h>
-#include <arpa/inet.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#endif
 
 #include "usbip_host_driver.h"
 #include "usbip_common.h"
@@ -40,21 +27,6 @@
 
 char *usbip_progname = "usbipd";
 char *usbip_default_pid_file = "/var/run/usbipd";
-
-static int driver_open(void)
-{
-	return usbip_driver_open();
-}
-
-static void driver_close(void)
-{
-	usbip_driver_close();
-}
-
-struct usbipd_driver_ops usbipd_driver_ops = {
-	driver_open,
-	driver_close,
-};
 
 static int recv_request_import(struct usbip_sock *sock,
 			       const char *host, const char *port)

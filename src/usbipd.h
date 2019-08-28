@@ -37,11 +37,4 @@ struct usbipd_recv_pdu_op {
 
 extern struct usbipd_recv_pdu_op usbipd_recv_pdu_ops[];
 
-struct usbipd_driver_ops {
-	int (*open)(void);
-	void (*close)(void);
-};
-
-extern struct usbipd_driver_ops usbipd_driver_ops;
-
 #endif /* __USBIPD_H */

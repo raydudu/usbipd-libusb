@@ -27,14 +27,9 @@
 #include <pthread.h>
 #endif
 #include <libusb-1.0/libusb.h>
-#include "usbip_host_common.h"
+#include "usbip_host_driver.h"
 #include "stub_common.h"
 #include "list.h"
-
-#define STUB_BUSID_OTHER 0
-#define STUB_BUSID_REMOV 1
-#define STUB_BUSID_ADDED 2
-#define STUB_BUSID_ALLOC 3
 
 struct stub_interface {
 	struct usbip_usb_interface uinf;
