@@ -23,7 +23,6 @@
 
 #include <stdio.h>
 #include <stddef.h>
-#include <libusb-1.0/libusb.h>
 
 #include "usbip_common.h"
 
@@ -121,7 +120,7 @@ int usbip_dev_printf(FILE *s, const char *level,
 int usbip_devh_printf(FILE *s, const char *level,
 			libusb_device_handle *dev_handle);
 
-extern unsigned long usbip_debug_flag;
+extern unsigned long usbip_libusb_debug;
 extern struct device_attribute dev_attr_usbip_debug;
 
 #ifndef USBIP_OS_NO_NR_ARGS
@@ -142,9 +141,6 @@ extern struct device_attribute dev_attr_usbip_debug;
 	(usbip_dev_printf(stderr, "ERROR", dev), \
 	fprintf(stderr, __VA_ARGS__))
 
-#define devh_dbg(devh, ...) \
-	(usbip_devh_printf(stdout, "DEBUG", devh), \
-	fprintf(stdout, __VA_ARGS__))
 #define devh_info(devh, ...) \
 	(usbip_devh_printf(stdout, "INFO", devh), \
 	fprintf(stdout, __VA_ARGS__))
@@ -154,39 +150,27 @@ extern struct device_attribute dev_attr_usbip_debug;
 
 enum {
 	usbip_debug_xmit	= (1 << 0),
-	usbip_debug_sysfs	= (1 << 1),
-	usbip_debug_urb		= (1 << 2),
-	usbip_debug_eh		= (1 << 3),
-
-	usbip_debug_stub_cmp	= (1 << 8),
-	usbip_debug_stub_dev	= (1 << 9),
-	usbip_debug_stub_rx	= (1 << 10),
-	usbip_debug_stub_tx	= (1 << 11),
+	usbip_debug_eh		= (1 << 1),
+	usbip_debug_stub_rx	= (1 << 2),
+	usbip_debug_stub_tx	= (1 << 3),
 };
 
-#define usbip_dbg_flag_xmit	(usbip_debug_flag & usbip_debug_xmit)
-#define usbip_dbg_flag_stub_rx	(usbip_debug_flag & usbip_debug_stub_rx)
+#define usbip_dbg_flag_xmit	(usbip_libusb_debug & usbip_debug_xmit)
+#define usbip_dbg_flag_stub_rx	(usbip_libusb_debug & usbip_debug_stub_rx)
 #define usbip_dbg_flag_stub_tx	(usbip_debug_flag & usbip_debug_stub_tx)
-#define usbip_dbg_flag_vhci_sysfs  (usbip_debug_flag & usbip_debug_vhci_sysfs)
 
 
 #define usbip_dbg_with_flag(flag, fmt, args...)		\
 	do {						\
-		if (flag & usbip_debug_flag)		\
+		if (flag & usbip_libusb_debug)		\
 			pr_debug(fmt, ##args);		\
 	} while (0)
 
-#define usbip_dbg_sysfs(fmt, args...) \
-	usbip_dbg_with_flag(usbip_debug_sysfs, fmt, ##args)
 #define usbip_dbg_xmit(fmt, args...) \
 	usbip_dbg_with_flag(usbip_debug_xmit, fmt, ##args)
-#define usbip_dbg_urb(fmt, args...) \
-	usbip_dbg_with_flag(usbip_debug_urb, fmt, ##args)
 #define usbip_dbg_eh(fmt, args...) \
 	usbip_dbg_with_flag(usbip_debug_eh, fmt, ##args)
 
-#define usbip_dbg_stub_cmp(fmt, args...) \
-	usbip_dbg_with_flag(usbip_debug_stub_cmp, fmt, ##args)
 #define usbip_dbg_stub_rx(fmt, args...) \
 	usbip_dbg_with_flag(usbip_debug_stub_rx, fmt, ##args)
 #define usbip_dbg_stub_tx(fmt, args...) \
@@ -234,14 +218,13 @@ enum {
  * @direction: direction of the transfer
  * @ep: endpoint number
  */
-#pragma pack(4)
 struct usbip_header_basic {
 	uint32_t command;
 	uint32_t seqnum;
 	uint32_t devid;
 	uint32_t direction;
 	uint32_t ep;
-};
+} __attribute__((packed));
 
 /**
  * struct usbip_header_cmd_submit - USBIP_CMD_SUBMIT packet header
@@ -252,7 +235,6 @@ struct usbip_header_basic {
  * @interval: maximum time for the request on the server-side host controller
  * @setup: setup data for a control request
  */
-#pragma pack(4)
 struct usbip_header_cmd_submit {
 	uint32_t transfer_flags;
 	int32_t transfer_buffer_length;
@@ -263,7 +245,7 @@ struct usbip_header_cmd_submit {
 	int32_t interval;
 
 	unsigned char setup[8];
-};
+}  __attribute__((packed));
 
 /**
  * struct usbip_header_ret_submit - USBIP_RET_SUBMIT packet header
@@ -273,39 +255,35 @@ struct usbip_header_cmd_submit {
  * @number_of_packets: number of isochronous packets
  * @error_count: number of errors for isochronous transfers
  */
-#pragma pack(4)
 struct usbip_header_ret_submit {
 	int32_t status;
 	int32_t actual_length;
 	int32_t start_frame;
 	int32_t number_of_packets;
 	int32_t error_count;
-};
+} __attribute__((packed));
 
 /**
  * struct usbip_header_cmd_unlink - USBIP_CMD_UNLINK packet header
  * @seqnum: the URB seqnum to unlink
  */
-#pragma pack(4)
 struct usbip_header_cmd_unlink {
 	uint32_t seqnum;
-};
+} __attribute__((packed));
 
 /**
  * struct usbip_header_ret_unlink - USBIP_RET_UNLINK packet header
  * @status: return status of the request
  */
-#pragma pack(4)
 struct usbip_header_ret_unlink {
 	uint32_t status;
-};
+} __attribute__((packed));
 
 /**
  * struct usbip_header - common header for all usbip packets
  * @base: the basic header
  * @u: packet type dependent header
  */
-#pragma pack(4)
 struct usbip_header {
 	struct usbip_header_basic base;
 
@@ -315,23 +293,17 @@ struct usbip_header {
 		struct usbip_header_cmd_unlink	cmd_unlink;
 		struct usbip_header_ret_unlink	ret_unlink;
 	} u;
-};
+} __attribute__((packed));
 
 /*
  * This is the same as usb_iso_packet_descriptor but packed for pdu.
  */
-#pragma pack(4)
 struct usbip_iso_packet_descriptor {
 	uint32_t offset;
 	uint32_t length;			/* expected length */
 	uint32_t actual_length;
 	uint32_t status;
-};
-
-enum usbip_side {
-	USBIP_VHCI,
-	USBIP_STUB,
-};
+} __attribute__((packed));
 
 /* event handler */
 #define USBIP_EH_SHUTDOWN	(1 << 0)
@@ -344,11 +316,6 @@ enum usbip_side {
 #define	SDEV_EVENT_ERROR_TCP	(USBIP_EH_SHUTDOWN | USBIP_EH_RESET)
 #define	SDEV_EVENT_ERROR_SUBMIT	(USBIP_EH_SHUTDOWN | USBIP_EH_RESET)
 #define	SDEV_EVENT_ERROR_MALLOC	(USBIP_EH_SHUTDOWN | USBIP_EH_UNUSABLE)
-
-#define	VDEV_EVENT_REMOVED	(USBIP_EH_SHUTDOWN | USBIP_EH_BYE)
-#define	VDEV_EVENT_DOWN		(USBIP_EH_SHUTDOWN | USBIP_EH_RESET)
-#define	VDEV_EVENT_ERROR_TCP	(USBIP_EH_SHUTDOWN | USBIP_EH_RESET)
-#define	VDEV_EVENT_ERROR_MALLOC	(USBIP_EH_SHUTDOWN | USBIP_EH_UNUSABLE)
 
 /* a common structure for stub_device and vhci_device */
 struct usbip_device {

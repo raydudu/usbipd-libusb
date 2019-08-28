@@ -26,7 +26,7 @@
 #ifndef USBIP_OS_NO_PTHREAD_H
 #include <pthread.h>
 #endif
-#include <libusb-1.0/libusb.h>
+#include <libusb.h>
 #include "usbip_host_driver.h"
 #include "stub_common.h"
 #include "list.h"
@@ -95,17 +95,6 @@ struct stub_unlink {
 	unsigned long seqnum;
 	struct list_head list;
 	enum libusb_transfer_status status;
-};
-
-/* same as SYSFS_BUS_ID_SIZE */
-#define BUSID_SIZE 32
-
-struct bus_id_priv {
-	char name[BUSID_SIZE];
-	char status;
-	int interf_count;
-	struct stub_device *sdev;
-	char shutdown_busid;
 };
 
 struct stub_edev_data {

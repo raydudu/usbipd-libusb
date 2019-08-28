@@ -37,7 +37,7 @@ void stub_enqueue_ret_unlink(struct stub_device *sdev, uint32_t seqnum,
 
 	unlink = (struct stub_unlink *)calloc(1, sizeof(struct stub_unlink));
 	if (!unlink) {
-		usbip_event_add(&sdev->ud, VDEV_EVENT_ERROR_MALLOC);
+		usbip_event_add(&sdev->ud, SDEV_EVENT_ERROR_MALLOC);
 		return;
 	}
 

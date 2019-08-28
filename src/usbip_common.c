@@ -9,8 +9,6 @@
 #undef  PROGNAME
 #define PROGNAME "libusbip"
 
-int usbip_use_syslog;
-int usbip_use_stderr;
 int usbip_use_debug;
 
 extern struct udev *udev_context;
@@ -42,17 +40,6 @@ static struct portst_string portst_strings[] = {
 	{ SDEV_ST_ERROR,	"Device Error"},
 	{ 0, NULL}
 };
-
-const char *usbip_status_string(int32_t status)
-{
-	int i;
-
-	for (i = 0; portst_strings[i].desc != NULL; i++)
-		if (portst_strings[i].num == status)
-			return portst_strings[i].desc;
-
-	return "Unknown Status";
-}
 
 const char *usbip_speed_string(int num)
 {
@@ -113,16 +100,6 @@ void dump_usb_device(struct usbip_usb_device *udev)
 	DBG_UDEV_INTEGER(devnum);
 }
 
-int usbip_names_init(char *f)
-{
-	return names_init(f);
-}
-
-void usbip_names_free(void)
-{
-	names_free();
-}
-
 void usbip_names_get_product(char *buff, size_t size, uint16_t vendor,
 			     uint16_t product)
 {
@@ -167,20 +144,4 @@ void usbip_names_get_class(char *buff, size_t size, uint8_t clazz,
 	snprintf(buff, size,
 		"%s / %s / %s (%02x/%02x/%02x)",
 		c, s, p, clazz, subclass, protocol);
-}
-
-
-void usbip_set_use_debug(int val)
-{
-	usbip_use_debug = val;
-}
-
-void usbip_set_use_stderr(int val)
-{
-	usbip_use_stderr = val;
-}
-
-void usbip_set_use_syslog(int val)
-{
-	usbip_use_syslog = val;
 }

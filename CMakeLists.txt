@@ -12,12 +12,11 @@ add_definitions(-DDEBUG)
 
 add_executable(${PROJECT_NAME}
         include/usbip.h
-        include/usbip_api.h
         include/list.h
-        libsrc/names.c
-        libsrc/names.h
-        libsrc/usbip_common.c
-        libsrc/usbip_common.h
+        src/names.c
+        src/names.h
+        src/usbip_common.c
+        include/usbip_common.h
         src/usbip_network.c
         src/usbip_network.h
         src/usbipd_dev.c

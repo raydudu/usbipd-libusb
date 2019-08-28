@@ -28,16 +28,15 @@
 #define PACKAGE_STRING "usbip-libusb 2.0"
 #define PACKAGE "usbip-libusb"
 
+#define USBIDS_FILE "/usr/share/hwdata/usb.ids"
+
 #define USBIP_OS_NO_DAEMON
 //#define USBIP_OS_HAVE_CONTAINER_OF // list.h config
-//#define USBIP_OS_NO_P_TMPDIR //TODO what a heck is get_tmp_dir(...)
 #define USBIP_OS_NO_FORK
 //#define USBIP_OS_NO_PTHREAD_H //TODO Just removes includes, doesn't switch anything else, might be useful in future
 //#define USBIP_OS_NO_POLL_H //TODO Just removes includes, doesn't switch anything else, might be useful in future
 //#define USBIP_OS_NO_SYS_SOCKET
-//#define USBIP_OS_NO_SYSLOG
-//#define USBIP_OS_NO_UNISTD_H
-#define USBIP_WITH_LIBUSB
+#define CONFIG_USBIP_DEBUG //Enable all liubusb debug messages
 
 
 #endif /* !__USBIP_CONFIG_H */

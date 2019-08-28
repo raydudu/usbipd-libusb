@@ -19,12 +19,10 @@
 
 #include "usbip_config.h"
 
-#ifndef USBIP_OS_NO_SYS_SOCKET
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <netinet/tcp.h>
-#endif
 
 #include <string.h>
 
@@ -96,8 +94,8 @@ void usbip_net_pack_usb_device(int pack, struct usbip_usb_device *udev)
 	usbip_net_pack_uint16_t(pack, &udev->bcdDevice);
 }
 
-void usbip_net_pack_usb_interface(int pack UNUSED,
-				  struct usbip_usb_interface *udev UNUSED)
+void usbip_net_pack_usb_interface(int pack,
+				  struct usbip_usb_interface *udev)
 {
 	/* uint8_t members need nothing */
 }

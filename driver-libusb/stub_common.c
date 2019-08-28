@@ -16,21 +16,18 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "usbip_config.h"
-
 #include <sys/types.h>
-#ifndef USBIP_OS_NO_SYS_SOCKET
 #include <sys/socket.h>
 #include <arpa/inet.h>
-#endif
 #include <errno.h>
 
 #include "stub.h"
 
 #ifdef CONFIG_USBIP_DEBUG
-unsigned long usbip_debug_flag = 0xffffffff;
+unsigned long usbip_libusb_debug = 0xffffffff;
 #else
-unsigned long usbip_debug_flag;
+
+unsigned long usbip_libusb_debug;
 #endif
 
 int usbip_dev_printf(FILE *s, const char *level, struct libusb_device *dev)
@@ -763,9 +760,4 @@ int usbip_recv_xbuff(struct usbip_device *ud, struct libusb_transfer *trx,
 	}
 
 	return ret;
-}
-
-void usbip_set_debug_flags(unsigned long flags)
-{
-	usbip_debug_flag = flags;
 }

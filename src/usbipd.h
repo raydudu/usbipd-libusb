@@ -22,9 +22,7 @@
 
 #include "usbip_common.h"
 
-#ifdef USBIP_WITH_LIBUSB
-extern unsigned long usbip_debug_flag;
-#endif
+extern unsigned long usbip_libusb_debug;
 
 extern char *usbip_progname;
 extern char *usbip_default_pid_file;

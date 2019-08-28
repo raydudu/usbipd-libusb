@@ -16,11 +16,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "usbip_config.h"
-
 #include <sys/stat.h>
-#include <errno.h>
-
 
 #include "stub.h"
 
@@ -119,6 +115,7 @@ static uint32_t get_device_speed(libusb_device *dev)
 	case LIBUSB_SPEED_HIGH:
 		return USB_SPEED_HIGH;
 	case LIBUSB_SPEED_SUPER:
+        return USB_SPEED_SUPER;
 	default:
 		dbg("unknown speed enum %d", speed);
 	}
@@ -318,8 +315,6 @@ static void exported_device_delete(struct usbip_exported_device *edev)
 	free(edev);
 }
 
-static int stub_find_exported_device(const char *busid);
-
 int usbip_refresh_device_list(struct usbip_exported_devices *edevs) {
 	int num, i;
 	libusb_device **devs, *dev;
@@ -340,8 +335,10 @@ int usbip_refresh_device_list(struct usbip_exported_devices *edevs) {
 	for (i = 0; i < num; i++) {
 		dev = *(devs + i);
 		get_busid(dev, busid);
+/*
 		if (!stub_find_exported_device(busid))
 			continue;
+*/
 		if (libusb_get_device_descriptor(dev, &desc)) {
 			err("get device desc %s", busid);
 			goto err_free_list;
@@ -392,188 +389,6 @@ struct usbip_exported_device *usbip_get_device(struct usbip_exported_devices *ed
 	}
 
 	return NULL;
-}
-
-static int comp_devices(const void *a, const void *b)
-{
-	const struct usbip_usb_device *da = (struct usbip_usb_device *)a;
-	const struct usbip_usb_device *db = (struct usbip_usb_device *)b;
-
-	return strcmp(da->busid, db->busid);
-}
-
-int usbip_list_devices(struct usbip_usb_device **udevs) {
-	int num, i;
-	int cnt, ret;
-	libusb_device **devs;
-
-	num = libusb_get_device_list(stub_libusb_ctx, &devs);
-	if (num < 0) {
-		err("get device list");
-		goto err_out;
-	}
-
-	*udevs = (struct usbip_usb_device *)calloc(num,
-					sizeof(struct usbip_usb_device));
-	if (*udevs == NULL) {
-		err("alloc udev list");
-		goto err_free_devlist;
-	}
-
-	cnt = 0;
-	for (i = 0; i < num; i++) {
-		ret = fill_usb_device(*udevs + cnt, *(devs + i));
-		if (ret == FILL_SKIPPED)
-			continue; /* filtered */
-		else if (ret < 0)
-			continue;
-		cnt++;
-	}
-	*udevs = realloc(*udevs, cnt * sizeof(struct usbip_usb_device));
-
-	qsort(*udevs, cnt, sizeof(struct usbip_usb_device), comp_devices);
-
-	libusb_free_device_list(devs, 1);
-	return cnt;
-
-err_free_devlist:
-	libusb_free_device_list(devs, 1);
-err_out:
-	return -1;
-}
-
-int stub_find_device(const char *__busid)
-{
-	int i, num, ret = 0;
-	libusb_device **devs, *dev;
-	char busid[SYSFS_BUS_ID_SIZE];
-
-	num = libusb_get_device_list(stub_libusb_ctx, &devs);
-	if (num < 0) {
-		err("get device list");
-		return -1;
-	}
-
-	for (i = 0; i < num; i++) {
-		dev = *(devs + i);
-		get_busid(dev, busid);
-		if (!strcmp(busid, __busid)) {
-			ret = 1;
-			break;
-		}
-	}
-
-	libusb_free_device_list(devs, 1);
-	return ret;
-}
-
-#define DIR_BIND "/usbip/edevs/"
-
-#define BIND_MAX_PATH (BUSID_SIZE + 256)
-
-#ifndef USBIP_OS_NO_P_TMPDIR
-static inline void get_tmp_dir(char *dir, int len)
-{
-	strncpy(dir, P_tmpdir, len);
-}
-#endif
-
-static inline void edev_get_dir(char *dir, int len)
-{
-	get_tmp_dir(dir, len);
-	strncat(dir, DIR_BIND, len);
-}
-
-static void edev_get_path(char *path, const char *busid)
-{
-	edev_get_dir(path, BIND_MAX_PATH);
-	strncat(path, busid, BIND_MAX_PATH);
-}
-
-static int edev_mkdir(const char *path)
-{
-	char *p;
-	char buf[BIND_MAX_PATH];
-
-	strncpy(buf, path, BIND_MAX_PATH);
-	for (p = strchr(buf + 1, '/'); p; p = strchr(p + 1, '/')) {
-		if (*(p + 1) == '/')
-			continue;
-		*p = 0;
-		if (mkdir(buf, 0777)) {
-			if (errno != EEXIST)
-				return -1;
-		}
-		*p = '/';
-	}
-	return 0;
-}
-#if 0
-int stub_bind_device(const char *busid)
-{
-	int fd;
-	char path[BIND_MAX_PATH];
-
-	if (usbip_driver_open())
-		goto err_out;
-
-	if (!stub_find_device(busid)) {
-		dbg("device not found %s", busid);
-		goto err_close;
-	}
-
-	edev_get_path(path, busid);
-
-	if (edev_mkdir(path)) {
-		err("mkdir edev %s", path);
-		goto err_close;
-	}
-
-	fd = open(path, O_CREAT | O_EXCL | O_WRONLY, 0600);
-	if (fd < 0) {
-		err("add edev %s", path);
-		goto err_close;
-	}
-	close(fd);
-    usbip_driver_close();
-	return 0;
-err_close:
-    usbip_driver_close();
-err_out:
-	return -1;
-}
-
-int stub_unbind_device(const char *busid)
-{
-	char path[BIND_MAX_PATH];
-
-	if (usbip_driver_open())
-		goto err_out;
-
-	edev_get_path(path, busid);
-
-	if (unlink(path)) {
-		err("del edev %s", path);
-		goto err_close;
-	}
-    usbip_driver_close();
-	return 0;
-err_close:
-    usbip_driver_close();
-err_out:
-	return -1;
-}
-#endif
-static int stub_find_exported_device(const char *busid)
-{
-	char path[BIND_MAX_PATH];
-	struct stat st;
-
-	edev_get_path(path, busid);
-
-	if (stat(path, &st))
-		return 0;
-	return 1;
 }
 
 static void stub_shutdown(struct usbip_device *ud)
@@ -855,9 +670,6 @@ int usbip_try_transfer(struct usbip_exported_device *edev, int sock_fd) {
 	stub_unexport_device(sdev);
 
 	return 0;
-}
-int usbip_has_transferred(void) {
-	return 1;
 }
 
 
