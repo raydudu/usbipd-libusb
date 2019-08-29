@@ -18,6 +18,8 @@
  */
 
 #include <sys/types.h>
+#include <arpa/inet.h>
+
 
 #include "usbip_host_driver.h"
 #include "usbip_common.h"
@@ -135,7 +137,8 @@ static int send_reply_devlist(int sock_fd)
 		dbg("usbip_net_send_op_common failed: %#0x", OP_REP_DEVLIST);
 		goto err_free_edevs;
 	}
-	PACK_OP_DEVLIST_REPLY(1, &reply);
+
+	reply.ndev = htonl(reply.ndev);
 
 	rc = usbip_net_send(sock_fd, &reply, sizeof(reply));
 	if (rc < 0) {

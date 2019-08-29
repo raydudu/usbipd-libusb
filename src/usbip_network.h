@@ -32,12 +32,6 @@ struct op_common {
 #define ST_NO_FREE_PORT		0x02
 #define ST_DEVICE_NOT_FOUND	0x03
 
-#define PACK_OP_COMMON(pack, op_common)  do {\
-	usbip_net_pack_uint16_t(pack, &(op_common)->version);\
-	usbip_net_pack_uint16_t(pack, &(op_common)->code);\
-	usbip_net_pack_uint32_t(pack, &(op_common)->status);\
-} while (0)
-
 /* ---------------------------------------------------------------------- */
 /* Dummy Code */
 #define OP_UNSPEC	0x00
@@ -163,28 +157,18 @@ struct op_devlist_reply_extra {
 	struct usbip_usb_interface uinf[];
 } __attribute__((packed));
 
-#define PACK_OP_DEVLIST_REQUEST(pack, request)  do {\
-} while (0)
 
-#define PACK_OP_DEVLIST_REPLY(pack, reply)  do {\
-	usbip_net_pack_uint32_t(pack, &(reply)->ndev);\
-} while (0)
-
-void usbip_net_pack_uint32_t(int pack, uint32_t *num);
-void usbip_net_pack_uint16_t(int pack, uint16_t *num);
 void usbip_net_pack_usb_device(int pack, struct usbip_usb_device *udev);
 void usbip_net_pack_usb_interface(int pack, struct usbip_usb_interface *uinf);
 
 ssize_t usbip_net_recv(int sock_fd, void *buff, size_t bufflen);
 ssize_t usbip_net_send(int sock_fd, void *buff, size_t bufflen);
-int usbip_net_send_op_common(int sock_fd, uint32_t code,
-			     uint32_t status);
+int usbip_net_send_op_common(int sock_fd, uint32_t code, uint32_t status);
 int usbip_net_recv_op_common(int sock_fd, uint16_t *code);
 int usbip_net_set_reuseaddr(int sockfd);
 int usbip_net_set_nodelay(int sockfd);
 int usbip_net_set_keepalive(int sockfd);
 int usbip_net_set_v6only(int sockfd);
-void usbip_net_tcp_conn_init(void);
 const char *usbip_net_gai_strerror(int errcode);
 
 #endif /* __USBIP_NETWORK_H */

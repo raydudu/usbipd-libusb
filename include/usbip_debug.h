@@ -34,7 +34,7 @@ extern unsigned long usbip_stub_debug_flags;
 #define dev_info(dev, fmt, args...) \
 	fprintf(stdout, dev_pfmt(dev, "<I>", fmt), ##args)
 #define dev_err(dev, fmt, args...) \
-	fprintf(stdout, dev_pfmt(dev, "<E>", fmt), ##args)
+	fprintf(stderr, dev_pfmt(dev, "<E>", fmt), ##args)
 
 enum {
     usbip_debug_xmit	= (1U << 0U),

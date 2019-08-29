@@ -323,7 +323,7 @@ static void set_signal(void) {
     sigaction(SIGTERM, &act, NULL);
     sigaction(SIGINT, &act, NULL);
     act.sa_handler = SIG_IGN;
-    sigaction(SIGCLD, &act, NULL);
+    sigaction(SIGCHLD, &act, NULL);
 }
 
 static const char *pid_file;
@@ -358,8 +358,9 @@ static int do_standalone_mode(int daemonize, int ipv4, int ipv6) {
     int nsockfd, family;
     int i, terminate;
     struct pollfd *fds;
-    struct timespec timeout;
+
     sigset_t sigmask;
+    sigset_t origmask;
 
     if (usbip_driver_open())
         goto err_out;
@@ -410,8 +411,6 @@ static int do_standalone_mode(int daemonize, int ipv4, int ipv6) {
         fds[i].fd = sockfdlist[i];
         fds[i].events = POLLIN;
     }
-    timeout.tv_sec = MAIN_LOOP_TIMEOUT;
-    timeout.tv_nsec = 0;
 
     sigfillset(&sigmask);
     sigdelset(&sigmask, SIGTERM);
@@ -421,7 +420,10 @@ static int do_standalone_mode(int daemonize, int ipv4, int ipv6) {
     while (!terminate) {
         int r;
 
-        r = ppoll(fds, nsockfd, &timeout, &sigmask);
+        pthread_sigmask(SIG_SETMASK, &sigmask, &origmask);
+        r = poll(fds, nsockfd, MAIN_LOOP_TIMEOUT * 1000);
+        pthread_sigmask(SIG_SETMASK, &origmask, NULL);
+
         if (r < 0) {
             dbg("%s", strerror(errno));
             terminate = 1;

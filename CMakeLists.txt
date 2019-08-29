@@ -5,6 +5,9 @@ set(CMAKE_C_STANDARD 11)
 
 find_path(LIBUSB_INCLUDE_DIR NAMES libusb.h PATH_SUFFIXES "include" "libusb" "libusb-1.0")
 find_library(LIBUSB_LIBRARY NAMES usb-1.0 PATH_SUFFIXES "lib" "lib32" "lib64")
+if(NOT LIBUSB_INCLUDE_DIR OR NOT LIBUSB_LIBRARY)
+    error("libusb not found")
+endif()
 
 include_directories(include libsrc)
 

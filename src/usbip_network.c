@@ -61,39 +61,24 @@ void usbip_setup_port_number(char *arg)
 	info("using port %d (\"%s\")", usbip_port, usbip_port_string);
 }
 
-void usbip_net_pack_uint32_t(int pack, uint32_t *num)
-{
-	uint32_t i;
-
-	if (pack)
-		i = htonl(*num);
-	else
-		i = ntohl(*num);
-
-	*num = i;
-}
-
-void usbip_net_pack_uint16_t(int pack, uint16_t *num)
-{
-	uint16_t i;
-
-	if (pack)
-		i = htons(*num);
-	else
-		i = ntohs(*num);
-
-	*num = i;
-}
-
 void usbip_net_pack_usb_device(int pack, struct usbip_usb_device *udev)
 {
-	usbip_net_pack_uint32_t(pack, &udev->busnum);
-	usbip_net_pack_uint32_t(pack, &udev->devnum);
-	usbip_net_pack_uint32_t(pack, &udev->speed);
+    if (pack) {
+        udev->busnum = htonl(udev->busnum);
+        udev->devnum = htonl(udev->devnum);
+        udev->speed = htonl(udev->speed);
+        udev->idVendor = htons(udev->idVendor);
+        udev->idProduct = htons(udev->idProduct);
+        udev->bcdDevice = htons(udev->bcdDevice);
+    } else {
+        udev->busnum = ntohl(udev->busnum);
+        udev->devnum = ntohl(udev->devnum);
+        udev->speed = ntohl(udev->speed);
+        udev->idVendor = ntohs(udev->idVendor);
+        udev->idProduct = ntohs(udev->idProduct);
+        udev->bcdDevice = ntohs(udev->bcdDevice);
 
-	usbip_net_pack_uint16_t(pack, &udev->idVendor);
-	usbip_net_pack_uint16_t(pack, &udev->idProduct);
-	usbip_net_pack_uint16_t(pack, &udev->bcdDevice);
+    }
 }
 
 void usbip_net_pack_usb_interface(int pack,
@@ -151,11 +136,9 @@ int usbip_net_send_op_common(int sock_fd,
 
 	memset(&op_common, 0, sizeof(op_common));
 
-	op_common.version = USBIP_VERSION;
-	op_common.code    = code;
-	op_common.status  = status;
-
-	PACK_OP_COMMON(1, &op_common);
+	op_common.version = htons(USBIP_VERSION);
+	op_common.code    = htons(code);
+	op_common.status  = htonl(status);
 
 	rc = usbip_net_send(sock_fd, &op_common, sizeof(op_common));
 	if (rc < 0) {
@@ -202,7 +185,9 @@ int usbip_net_recv_op_common(int sock_fd, uint16_t *code)
 		goto err;
 	}
 
-	PACK_OP_COMMON(0, &op_common);
+    op_common.version = ntohs(op_common.version);
+    op_common.code    = ntohs(op_common.code);
+    op_common.status  = ntohl(op_common.status);
 
 	if (op_common.version != USBIP_VERSION) {
 		dbg("version mismatch: %d %d", op_common.version, USBIP_VERSION);

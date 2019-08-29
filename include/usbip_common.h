@@ -17,10 +17,18 @@
 
 #ifdef __linux__
 #include <linux/usb/ch9.h>
-#include <usbip.h>
+#elif __APPLE__
+// Copied from linux/usb/ch9.h
+enum usb_device_speed {
+    USB_SPEED_UNKNOWN = 0,                  /* enumerating */
+    USB_SPEED_LOW, USB_SPEED_FULL,          /* usb 1.1 */
+    USB_SPEED_HIGH,                         /* usb 2.0 */
+    USB_SPEED_WIRELESS,                     /* wireless (usb 2.5) */
+    USB_SPEED_SUPER,                        /* usb 3.0 */
+};
 #endif
 
-
+#include <usbip.h>
 
 #define SYSFS_PATH_MAX		256
 #define SYSFS_BUS_ID_SIZE	32
