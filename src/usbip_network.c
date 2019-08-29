@@ -87,13 +87,21 @@ void usbip_net_pack_uint16_t(int pack, uint16_t *num)
 
 void usbip_net_pack_usb_device(int pack, struct usbip_usb_device *udev)
 {
-	usbip_net_pack_uint32_t(pack, &udev->busnum);
-	usbip_net_pack_uint32_t(pack, &udev->devnum);
-	usbip_net_pack_uint32_t(pack, &udev->speed);
-
-	usbip_net_pack_uint16_t(pack, &udev->idVendor);
-	usbip_net_pack_uint16_t(pack, &udev->idProduct);
-	usbip_net_pack_uint16_t(pack, &udev->bcdDevice);
+    if (pack) {
+        udev->busnum = htons(udev->busnum);
+        udev->devnum = htons(udev->devnum);
+        udev->speed = htons(udev->speed);
+        udev->idVendor = htons(udev->idVendor);
+        udev->idProduct = htons(udev->idProduct);
+        udev->bcdDevice = htons(udev->bcdDevice);
+    } else {
+        udev->busnum = ntohs(udev->busnum);
+        udev->devnum = ntohs(udev->devnum);
+        udev->speed = ntohs(udev->speed);
+        udev->idVendor = ntohs(udev->idVendor);
+        udev->idProduct = ntohs(udev->idProduct);
+        udev->bcdDevice = ntohs(udev->bcdDevice);
+    }
 }
 
 void usbip_net_pack_usb_interface(int pack,

@@ -378,6 +378,7 @@ int usbip_free_device_list(struct usbip_exported_devices *edevs) {
 		list_del(i);
 		exported_device_delete(edev);
 	}
+    return 0;
 }
 
 struct usbip_exported_device *usbip_get_device(struct usbip_exported_devices *edevs, const char *busid) {
@@ -549,11 +550,12 @@ static int claim_interface(libusb_device_handle *dev_handle,
 	int ret;
 
 	ret = libusb_detach_kernel_driver(dev_handle, nr);
-	if (!(ret == 0 || ret == LIBUSB_ERROR_NOT_FOUND))
+	if (!(ret == 0 || ret == LIBUSB_ERROR_NOT_FOUND)) {
 		dbg("failed to detach interface %d by %d", nr, ret);
 		/* ignore error, because some platform doesn't support */
-	else
-		intf->detached = 1;
+	} else {
+        intf->detached = 1;
+    }
 
 	dbg("claiming interface %d", nr);
 	ret = libusb_claim_interface(dev_handle, nr);

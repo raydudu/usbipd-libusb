@@ -7,6 +7,7 @@
 #ifndef _UAPI_LINUX_USBIP_H
 #define _UAPI_LINUX_USBIP_H
 
+
 /* usbip device status - exported in usbip device sysfs status */
 enum usbip_device_status {
 	/* sdev is available. */
