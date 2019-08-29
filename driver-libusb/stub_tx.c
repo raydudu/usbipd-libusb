@@ -57,25 +57,24 @@ void LIBUSB_CALL stub_complete(struct libusb_transfer *trx)
 		/* OK */
 		break;
 	case LIBUSB_TRANSFER_ERROR:
-	    if (!trx->flags & LIBUSB_TRANSFER_SHORT_NOT_OK) {
+	    if (!(trx->flags & LIBUSB_TRANSFER_SHORT_NOT_OK)) {
             dev_info(sdev->dev, "error on endpoint %d", trx->endpoint);
-        }
+        } else {
+	        //Tweaking status to complete as we received data, but all
+	        trx->status = LIBUSB_TRANSFER_COMPLETED;
+	    }
 		break;
 	case LIBUSB_TRANSFER_CANCELLED:
-		dev_info(sdev->dev,
-			"unlinked by a call to usb_unlink_urb()");
+		dev_info(sdev->dev, "unlinked by a call to usb_unlink_urb()");
 		break;
 	case LIBUSB_TRANSFER_STALL:
-		dev_info(sdev->dev,
-			"endpoint %d is stalled", trx->endpoint);
+		dev_err(sdev->dev, "endpoint %d is stalled", trx->endpoint);
 		break;
 	case LIBUSB_TRANSFER_NO_DEVICE:
 		dev_info(sdev->dev, "device removed?");
 		break;
 	default:
-		dev_info(sdev->dev,
-			"urb completion with non-zero status %d",
-			trx->status);
+		dev_err(sdev->dev,  "urb completion with unknown status %d", trx->status);
 		break;
 	}
 

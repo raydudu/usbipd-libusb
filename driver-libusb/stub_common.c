@@ -325,8 +325,6 @@ int usbip_sendmsg(struct usbip_device *ud, struct kvec *vec, size_t num)
 	struct kvec *iov;
 	size_t total = 0;
 
-	usbip_dbg_xmit("enter usbip_sendmsg %zd", num);
-
 	for (i = 0; i < (int)num; i++) {
 		iov = vec+i;
 
@@ -376,12 +374,16 @@ int usbip_recv(struct usbip_device *ud, void *buf, int size)
 		usbip_dbg_xmit("receiving %d", size);
         result = recv(ud->sock_fd, bp, size, 0);
 
-		if (result <= 0) {
-			dbg("receive err sock %d buf %p size %u ",
-                     ud->sock_fd, buf, size);
-			dbg("ret %d total %d",
-				result, total);
-			goto err;
+		if (result < 0) {
+		    if (errno == EAGAIN ||  errno == EINTR) {
+		        result = 0; // Try more
+		    } else {
+                err("receive error %d (errno %d)", result, errno);
+                goto out;
+            }
+		} else if (result == 0) {
+		    info("connection closed, releasing the device...");
+		    goto out;
 		}
 
 		size -= result;
@@ -397,7 +399,7 @@ int usbip_recv(struct usbip_device *ud, void *buf, int size)
 
 	return total;
 
-err:
+out:
 	return result;
 }
 

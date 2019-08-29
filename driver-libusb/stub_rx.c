@@ -138,6 +138,7 @@ static int tweak_set_configuration_cmd(struct libusb_transfer *trx)
 	 * A user may need to set a special configuration value before
 	 * exporting the device.
 	 */
+	//TODO not sure if it is the point here
 	dev_info(libusb_get_device(trx->dev_handle),
 		"usb_set_configuration %d ... skip!",
 		config);
@@ -459,10 +460,9 @@ static void stub_recv_cmd_submit(struct stub_device *sdev,
 	ret = libusb_submit_transfer(priv->trx);
 
 	if (ret == 0)
-		usbip_dbg_stub_rx("submit %p ok, seqnum %u",
-				  trx, pdu->base.seqnum);
+		usbip_dbg_stub_rx("submit_urb ok %p seq %u", trx, pdu->base.seqnum);
 	else {
-		dev_err(sdev->dev, "submit_urb error, %d", ret);
+		dev_err(sdev->dev, "submit_urb error, %d  seq %u", ret, pdu->base.seqnum);
 		usbip_dump_header(pdu);
 		usbip_dump_trx(trx);
 		libusb_free_transfer(trx);
@@ -473,8 +473,6 @@ static void stub_recv_cmd_submit(struct stub_device *sdev,
 		 */
 		usbip_event_add(ud, SDEV_EVENT_ERROR_SUBMIT);
 	}
-
-	usbip_dbg_stub_rx("Leave");
 }
 
 /* recv a pdu */
@@ -484,7 +482,6 @@ static void stub_rx_pdu(struct usbip_device *ud)
 	struct usbip_header pdu;
 	struct stub_device *sdev = container_of(ud, struct stub_device, ud);
 
-	usbip_dbg_stub_rx("Enter");
 again:
 	memset(&pdu, 0, sizeof(pdu));
 
