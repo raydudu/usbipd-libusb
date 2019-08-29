@@ -23,60 +23,7 @@
 
 #include "stub.h"
 
-#ifdef CONFIG_USBIP_DEBUG
-unsigned long usbip_libusb_debug = 0xffffffff;
-#else
-
-unsigned long usbip_libusb_debug;
-#endif
-
-int usbip_dev_printf(FILE *s, const char *level, struct libusb_device *dev)
-{
-	uint8_t bus = libusb_get_bus_number(dev);
-	uint8_t adr = libusb_get_device_address(dev);
-
-	return fprintf(s, "%s:%d-%d ", level, bus, adr);
-}
-
-int usbip_devh_printf(FILE *s, const char *level,
-		      libusb_device_handle *dev_handle)
-{
-	struct libusb_device *dev = libusb_get_device(dev_handle);
-
-	return usbip_dev_printf(s, level, dev);
-}
-
-static void usbip_dump_buffer(char *buff, int bufflen)
-{
-	unsigned char *p = (unsigned char *)buff;
-	int rem = bufflen;
-	int i;
-	struct b {
-		char b[3];
-	};
-	struct b a[16];
-
-	while (rem > 0) {
-		for (i = 0; i < 16; i++) {
-			if (i < rem)
-				sprintf(a[i].b, "%02x", *(p+i));
-			else
-				a[i].b[0] = 0;
-		}
-		fprintf(stdout,
-			"%s %s %s %s %s %s %s %s  %s %s %s %s %s %s %s %s\n",
-			a[0].b, a[1].b, a[2].b, a[3].b,
-			a[4].b, a[5].b, a[6].b, a[7].b,
-			a[8].b, a[9].b, a[10].b, a[11].b,
-			a[12].b, a[13].b, a[14].b, a[15].b);
-		if (rem > 16) {
-			rem -= 16;
-			p += 16;
-		} else {
-			rem = 0;
-		}
-	}
-}
+#include <usbip_debug.h>
 
 static const char *s_trx_type_cont = "cont";
 static const char *s_trx_type_isoc = "isoc";
@@ -157,12 +104,12 @@ static void usbip_dump_usb_device(struct libusb_device *dev)
 	char buf[3*16+1];
 
 	if (libusb_get_device_descriptor(dev, &desc))
-		dev_err(dev, "fail to get desc\n");
+		dev_err(dev, "fail to get desc");
 
 	if (libusb_get_active_config_descriptor(dev, &config) == 0)
 		config_acquired = 1;
 
-	dev_dbg(dev, "addr(%d)\n",
+	dev_dbg(dev, "addr(%d)",
 		libusb_get_device_address(dev));
 	/* TODO: device number, device path */
 	/* TODO: Transaction Translator info, tt */
@@ -172,17 +119,17 @@ static void usbip_dump_usb_device(struct libusb_device *dev)
 	if (config_acquired) {
 		get_endpoint_descs(config, in, out, 16);
 		usbip_dump_ep_max(in, buf);
-		dev_dbg(dev, "epmaxp_in   :%s\n", buf);
+		dev_dbg(dev, "epmaxp_in   :%s", buf);
 		usbip_dump_ep_max(out, buf);
-		dev_dbg(dev, "epmaxp_out  :%s\n", buf);
+		dev_dbg(dev, "epmaxp_out  :%s", buf);
 	}
 
 	/* TODO: bus pointer */
-	dev_dbg(dev, "parent %p\n",
+	dev_dbg(dev, "parent %p",
 		libusb_get_parent(dev));
 
 	/* TODO: all configs pointer, raw descs */
-	dev_dbg(dev, "vendor:0x%x product:0x%x actconfig:%p\n",
+	dev_dbg(dev, "vendor:0x%x product:0x%x actconfig:%p",
 		desc.idVendor, desc.idProduct, config);
 
 	/* TODO: have_lang, have_langid */
@@ -265,29 +212,29 @@ static void usbip_dump_usb_ctrlrequest(struct libusb_device *dev,
 		libusb_control_transfer_get_setup(trx);
 
 	if (!cmd) {
-		dev_dbg(dev, "null control\n");
+		dev_dbg(dev, "null control");
 		return;
 	}
 
 	dev_dbg(dev, "bRequestType(%02X) bRequest(%02X) ",
 		cmd->bmRequestType, cmd->bRequest);
-	dev_dbg(dev, "wValue(%04X) wIndex(%04X) wLength(%04X)\n",
+	dev_dbg(dev, "wValue(%04X) wIndex(%04X) wLength(%04X)",
 		cmd->wValue, cmd->wIndex, cmd->wLength);
 
 	switch (cmd->bmRequestType & USB_TYPE_MASK) {
 	case LIBUSB_REQUEST_TYPE_STANDARD:
-		dev_dbg(dev, "STANDARD %s %s\n",
+		dev_dbg(dev, "STANDARD %s %s",
 			get_request_str(cmd->bRequest),
 			get_request_recipient_str(cmd->bmRequestType));
 		break;
 	case LIBUSB_REQUEST_TYPE_CLASS:
-		dev_dbg(dev, "CLASS\n");
+		dev_dbg(dev, "CLASS");
 		break;
 	case LIBUSB_REQUEST_TYPE_VENDOR:
-		dev_dbg(dev, "VENDOR\n");
+		dev_dbg(dev, "VENDOR");
 		break;
 	case LIBUSB_REQUEST_TYPE_RESERVED:
-		dev_dbg(dev, "RESERVED\n");
+		dev_dbg(dev, "RESERVED");
 		break;
 	}
 }
@@ -297,29 +244,29 @@ void usbip_dump_trx(struct libusb_transfer *trx)
 	struct libusb_device *dev;
 
 	if (!trx) {
-		pr_debug("trx: null pointer!!\n");
+		dbg("trx: null pointer!!");
 		return;
 	}
 
 	if (!trx->dev_handle) {
-		pr_debug("trx->dev_handle: null pointer!!\n");
+		dbg("trx->dev_handle: null pointer!!");
 		return;
 	}
 
 	dev = libusb_get_device(trx->dev_handle);
 
-	dev_dbg(dev, "   trx          :%p\n", trx);
-	dev_dbg(dev, "   dev_handle   :%p\n", trx->dev_handle);
-	dev_dbg(dev, "   trx_type     :%s\n", get_trx_type_str(trx->type));
-	dev_dbg(dev, "   endpoint     :%08x\n", trx->endpoint);
-	dev_dbg(dev, "   status       :%d\n", trx->status);
-	dev_dbg(dev, "   trx_flags    :%08X\n", trx->flags);
-	dev_dbg(dev, "   buffer       :%p\n", trx->buffer);
-	dev_dbg(dev, "   buffer_length:%d\n", trx->length);
-	dev_dbg(dev, "   actual_length:%d\n", trx->actual_length);
-	dev_dbg(dev, "   num_packets  :%d\n", trx->num_iso_packets);
-	dev_dbg(dev, "   context      :%p\n", trx->user_data);
-	dev_dbg(dev, "   complete     :%p\n", trx->callback);
+	dev_dbg(dev, "   trx          :%p", trx);
+	dev_dbg(dev, "   dev_handle   :%p", trx->dev_handle);
+	dev_dbg(dev, "   trx_type     :%s", get_trx_type_str(trx->type));
+	dev_dbg(dev, "   endpoint     :%08x", trx->endpoint);
+	dev_dbg(dev, "   status       :%d", trx->status);
+	dev_dbg(dev, "   trx_flags    :%08X", trx->flags);
+	dev_dbg(dev, "   buffer       :%p", trx->buffer);
+	dev_dbg(dev, "   buffer_length:%d", trx->length);
+	dev_dbg(dev, "   actual_length:%d", trx->actual_length);
+	dev_dbg(dev, "   num_packets  :%d", trx->num_iso_packets);
+	dev_dbg(dev, "   context      :%p", trx->user_data);
+	dev_dbg(dev, "   complete     :%p", trx->callback);
 
 	if (trx->type == LIBUSB_TRANSFER_TYPE_CONTROL)
 		usbip_dump_usb_ctrlrequest(dev, trx);
@@ -329,7 +276,7 @@ void usbip_dump_trx(struct libusb_transfer *trx)
 
 void usbip_dump_header(struct usbip_header *pdu)
 {
-	pr_debug("BASE: cmd %u seq %u devid %u dir %u ep %u\n",
+	dbg("BASE: cmd %u seq %u devid %u dir %u ep %u",
 		 pdu->base.command,
 		 pdu->base.seqnum,
 		 pdu->base.devid,
@@ -338,7 +285,7 @@ void usbip_dump_header(struct usbip_header *pdu)
 
 	switch (pdu->base.command) {
 	case USBIP_CMD_SUBMIT:
-		pr_debug("USBIP_CMD_SUBMIT: xflg %x xln %u sf %x #p %d iv %d\n",
+		dbg("USBIP_CMD_SUBMIT: xflg %x xln %u sf %x #p %d iv %d",
 			 pdu->u.cmd_submit.transfer_flags,
 			 pdu->u.cmd_submit.transfer_buffer_length,
 			 pdu->u.cmd_submit.start_frame,
@@ -346,11 +293,11 @@ void usbip_dump_header(struct usbip_header *pdu)
 			 pdu->u.cmd_submit.interval);
 		break;
 	case USBIP_CMD_UNLINK:
-		pr_debug("USBIP_CMD_UNLINK: seq %u\n",
+		dbg("USBIP_CMD_UNLINK: seq %u",
 			 pdu->u.cmd_unlink.seqnum);
 		break;
 	case USBIP_RET_SUBMIT:
-		pr_debug("USBIP_RET_SUBMIT: st %d al %u sf %x #p %d ec %d\n",
+		dbg("USBIP_RET_SUBMIT: st %d al %u sf %x #p %d ec %d",
 			 pdu->u.ret_submit.status,
 			 pdu->u.ret_submit.actual_length,
 			 pdu->u.ret_submit.start_frame,
@@ -358,15 +305,15 @@ void usbip_dump_header(struct usbip_header *pdu)
 			 pdu->u.ret_submit.error_count);
 		break;
 	case USBIP_RET_UNLINK:
-		pr_debug("USBIP_RET_UNLINK: status %d\n",
+		dbg("USBIP_RET_UNLINK: status %d",
 			 pdu->u.ret_unlink.status);
 		break;
 	case USBIP_NOP:
-		pr_debug("USBIP_NOP\n");
+		dbg("USBIP_NOP");
 		break;
 	default:
 		/* NOT REACHED */
-		pr_err("unknown command\n");
+		err("unknown command");
 		break;
 	}
 }
@@ -378,7 +325,7 @@ int usbip_sendmsg(struct usbip_device *ud, struct kvec *vec, size_t num)
 	struct kvec *iov;
 	size_t total = 0;
 
-	usbip_dbg_xmit("enter usbip_sendmsg %zd\n", num);
+	usbip_dbg_xmit("enter usbip_sendmsg %zd", num);
 
 	for (i = 0; i < (int)num; i++) {
 		iov = vec+i;
@@ -387,7 +334,7 @@ int usbip_sendmsg(struct usbip_device *ud, struct kvec *vec, size_t num)
 			continue;
 
 		if (usbip_dbg_flag_xmit) {
-			pr_debug("sending, idx %d size %zd\n",
+			dbg("sending, idx %d size %zd",
 					i, iov->iov_len);
 			usbip_dump_buffer((char *)(iov->iov_base),
 					iov->iov_len);
@@ -397,9 +344,9 @@ int usbip_sendmsg(struct usbip_device *ud, struct kvec *vec, size_t num)
                       iov->iov_len, 0);
 
 		if (result < 0) {
-			pr_debug("send err sock %d buf %p size %zu ",
+			dbg("send err sock %d buf %p size %zu ",
                      ud->sock_fd, iov->iov_base, iov->iov_len);
-			pr_debug("ret %d total %zd\n",
+			dbg("ret %d total %zd",
 				result, total);
 			return total;
 		}
@@ -418,23 +365,21 @@ int usbip_recv(struct usbip_device *ud, void *buf, int size)
 	char *bp = (char *)buf;
 	int osize = size;
 
-	usbip_dbg_xmit("enter usbip_recv\n");
-
 	if (!ud->sock_fd || !buf || !size) {
-		pr_err("invalid arg, sock %d buff %p size %d\n",
+		err("invalid arg, sock %d buff %p size %d",
                ud->sock_fd, buf, size);
 		errno = EINVAL;
 		return -1;
 	}
 
 	do {
-		usbip_dbg_xmit("receiving %d\n", size);
+		usbip_dbg_xmit("receiving %d", size);
         result = recv(ud->sock_fd, bp, size, 0);
 
 		if (result <= 0) {
-			pr_debug("receive err sock %d buf %p size %u ",
+			dbg("receive err sock %d buf %p size %u ",
                      ud->sock_fd, buf, size);
-			pr_debug("ret %d total %d\n",
+			dbg("ret %d total %d",
 				result, total);
 			goto err;
 		}
@@ -445,7 +390,7 @@ int usbip_recv(struct usbip_device *ud, void *buf, int size)
 	} while (size > 0);
 
 	if (usbip_dbg_flag_xmit) {
-		pr_debug("received, osize %d ret %d size %d total %d\n",
+		dbg("received, osize %d ret %d size %d total %d",
 			 osize, result, size, total);
 		usbip_dump_buffer((char *)buf, osize);
 	}
@@ -619,7 +564,7 @@ void usbip_header_correct_endian(struct usbip_header *pdu, int send)
 		break;
 	default:
 		/* NOT REACHED */
-		pr_err("unknown command\n");
+		err("unknown command");
 		break;
 	}
 }
@@ -705,8 +650,8 @@ int usbip_recv_iso(struct usbip_device *ud, struct libusb_transfer *trx)
 
 	ret = usbip_recv(ud, buff, size);
 	if (ret != size) {
-		devh_err(trx->dev_handle,
-			"recv iso_frame_descriptor, %d\n", ret);
+		dev_err(libusb_get_device(trx->dev_handle),
+			"recv iso_frame_descriptor, %d", ret);
 		free(buff);
 		usbip_event_add(ud, SDEV_EVENT_ERROR_TCP);
 		errno = EPIPE;
@@ -723,12 +668,8 @@ int usbip_recv_iso(struct usbip_device *ud, struct libusb_transfer *trx)
 	free(buff);
 
 	if (total_length != trx->actual_length) {
-		devh_err(trx->dev_handle,
-			"total length of iso packets %d not equal to actual ",
-			total_length);
-		devh_err(trx->dev_handle,
-			"length of buffer %d\n",
-			trx->actual_length);
+		dev_err(libusb_get_device(trx->dev_handle), "total length of iso packets %d not equal to actual ", total_length);
+		dev_err(libusb_get_device(trx->dev_handle), "length of buffer %d", trx->actual_length);
 		usbip_event_add(ud, SDEV_EVENT_ERROR_TCP);
 		errno = EPIPE;
 		return -1;
@@ -755,7 +696,7 @@ int usbip_recv_xbuff(struct usbip_device *ud, struct libusb_transfer *trx,
 	 */
 	ret = usbip_recv(ud, trx->buffer + offset, size);
 	if (ret != size) {
-		devh_err(trx->dev_handle, "recv xbuf, %d\n", ret);
+		dev_err(libusb_get_device(trx->dev_handle), "recv xbuf, %d", ret);
 		usbip_event_add(ud, SDEV_EVENT_ERROR_TCP);
 	}
 

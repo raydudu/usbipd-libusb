@@ -17,6 +17,7 @@
  */
 
 #include "stub.h"
+#include <usbip_debug.h>
 
 static struct stub_priv *stub_priv_pop_from_listhead(struct list_head *listhead)
 {
@@ -25,7 +26,7 @@ static struct stub_priv *stub_priv_pop_from_listhead(struct list_head *listhead)
 
 	list_for_each_safe(pos, tmp, listhead) {
 		priv = list_entry(pos, struct stub_priv, list);
-		pr_warn("Found pending trx %p.\n", priv->trx);
+		warn("Found pending trx %p.", priv->trx);
 	}
 
 	return NULL;
@@ -57,7 +58,7 @@ void stub_device_cleanup_transfers(struct stub_device *sdev)
 	struct stub_priv *priv;
 	struct libusb_transfer *trx;
 
-	dev_dbg(sdev->dev, "free sdev %p\n", sdev);
+	dev_dbg(sdev->dev, "free sdev %p", sdev);
 
 	while (1) {
 		priv = stub_priv_pop(sdev);
@@ -67,7 +68,7 @@ void stub_device_cleanup_transfers(struct stub_device *sdev)
 		trx = priv->trx;
 		libusb_cancel_transfer(trx);
 
-		dev_dbg(sdev->dev, "free trx %p\n", trx);
+		dev_dbg(sdev->dev, "free trx %p", trx);
 		free(priv);
 		free(trx->buffer);
 		libusb_free_transfer(trx);

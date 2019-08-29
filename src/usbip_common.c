@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2005-2007 Takahiro Hirofuchi
  * Copyright (C) 2015-2016 Nobuo Iwata <nobuo.iwata@fujixerox.co.jp>
@@ -5,13 +6,8 @@
 
 #include "usbip_common.h"
 #include "names.h"
+#include <usbip_debug.h>
 
-#undef  PROGNAME
-#define PROGNAME "libusbip"
-
-int usbip_use_debug;
-
-extern struct udev *udev_context;
 
 struct speed_string {
 	int num;
@@ -29,17 +25,6 @@ static const struct speed_string speed_strings[] = {
 	{ 0, NULL, NULL }
 };
 
-struct portst_string {
-	int num;
-	char *desc;
-};
-
-static struct portst_string portst_strings[] = {
-	{ SDEV_ST_AVAILABLE,	"Device Available" },
-	{ SDEV_ST_USED,		"Device in Use" },
-	{ SDEV_ST_ERROR,	"Device Error"},
-	{ 0, NULL}
-};
 
 const char *usbip_speed_string(int num)
 {
@@ -124,8 +109,7 @@ void usbip_names_get_class(char *buff, size_t size, uint8_t clazz,
 
 	if (clazz == 0 && subclass == 0 && protocol == 0) {
 		snprintf(buff, size,
-			"(Defined at Interface level) (%02x/%02x/%02x)",
-			clazz, subclass, protocol);
+			"(Defined at Interface level) (%02x/%02x/%02x)", clazz, subclass, protocol);
 		return;
 	}
 
@@ -141,7 +125,5 @@ void usbip_names_get_class(char *buff, size_t size, uint8_t clazz,
 	if (!c)
 		c = "unknown class";
 
-	snprintf(buff, size,
-		"%s / %s / %s (%02x/%02x/%02x)",
-		c, s, p, clazz, subclass, protocol);
+	snprintf(buff, size, "%s / %s / %s (%02x/%02x/%02x)", c, s, p, clazz, subclass, protocol);
 }

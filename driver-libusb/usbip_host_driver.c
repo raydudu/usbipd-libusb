@@ -20,6 +20,8 @@
 
 #include "stub.h"
 
+#include <usbip_debug.h>
+
 libusb_context *stub_libusb_ctx;
 
 static struct stub_endpoint *get_endpoint(struct stub_device *sdev, uint8_t ep)
@@ -406,17 +408,17 @@ static void stub_device_reset(struct usbip_device *ud)
 	struct stub_device *sdev = container_of(ud, struct stub_device, ud);
 	int ret;
 
-	dev_dbg(sdev->dev, "device reset\n");
+	dev_dbg(sdev->dev, "device reset");
 
 	/* try to reset the device */
 	ret = libusb_reset_device(sdev->dev_handle);
 
 	pthread_mutex_lock(&ud->lock);
 	if (ret) {
-		dev_err(sdev->dev, "device reset\n");
+		dev_err(sdev->dev, "device reset");
 		ud->status = SDEV_ST_ERROR;
 	} else {
-		dev_info(sdev->dev, "device reset\n");
+		dev_info(sdev->dev, "device reset");
 		ud->status = SDEV_ST_AVAILABLE;
 	}
 	pthread_mutex_unlock(&ud->lock);

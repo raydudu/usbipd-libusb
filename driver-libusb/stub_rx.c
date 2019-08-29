@@ -1,22 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2003-2008 Takahiro Hirofuchi
  * Copyright (C) 2015-2016 Nobuo Iwata <nobuo.iwata@fujixerox.co.jp>
- *
- * This is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "stub.h"
+#include <usbip_debug.h>
 
 static int is_clear_halt_cmd(struct libusb_transfer *trx)
 {
@@ -63,7 +52,7 @@ static int is_reset_device_cmd(struct libusb_transfer *trx)
 	if ((req->bRequest == LIBUSB_REQUEST_SET_FEATURE) &&
 	    (request_type == USB_RT_PORT) &&
 	    (value == USB_PORT_FEAT_RESET)) {
-		usbip_dbg_stub_rx("reset_device_cmd, port %u\n", index);
+		usbip_dbg_stub_rx("reset_device_cmd, port %u", index);
 		return 1;
 	}
 	return 0;
@@ -71,8 +60,7 @@ static int is_reset_device_cmd(struct libusb_transfer *trx)
 
 static int tweak_clear_halt_cmd(struct libusb_transfer *trx)
 {
-	struct libusb_control_setup *req =
-			libusb_control_transfer_get_setup(trx);
+	struct libusb_control_setup *req = libusb_control_transfer_get_setup(trx);
 	unsigned char target_endp;
 	int ret;
 
@@ -87,12 +75,12 @@ static int tweak_clear_halt_cmd(struct libusb_transfer *trx)
 
 	ret = libusb_clear_halt(trx->dev_handle, target_endp);
 	if (ret)
-		devh_err(trx->dev_handle,
-			"usb_clear_halt error: endp %d ret %d\n",
+		dev_err(libusb_get_device(trx->dev_handle),
+			"usb_clear_halt error: endp %d ret %d",
 			target_endp, ret);
 	else
-		devh_info(trx->dev_handle,
-			"usb_clear_halt done: endp %d\n",
+		dev_info(libusb_get_device(trx->dev_handle),
+			"usb_clear_halt done: endp %d",
 			target_endp);
 
 	return ret;
@@ -109,18 +97,18 @@ static int tweak_set_interface_cmd(struct libusb_transfer *trx)
 	alternate = libusb_le16_to_cpu(req->wValue);
 	interface = libusb_le16_to_cpu(req->wIndex);
 
-	usbip_dbg_stub_rx("set_interface: inf %u alt %u\n",
+	usbip_dbg_stub_rx("set_interface: inf %u alt %u",
 			  interface, alternate);
 
 	ret = libusb_set_interface_alt_setting(trx->dev_handle,
 			interface, alternate);
 	if (ret)
-		devh_err(trx->dev_handle,
-			"usb_set_interface error: inf %u alt %u ret %d\n",
+		dev_err(libusb_get_device(trx->dev_handle),
+			"usb_set_interface error: inf %u alt %u ret %d",
 			interface, alternate, ret);
 	else
-		devh_info(trx->dev_handle,
-			"usb_set_interface done: inf %u alt %u\n",
+		dev_info(libusb_get_device(trx->dev_handle),
+			"usb_set_interface done: inf %u alt %u",
 			interface, alternate);
 
 	return ret;
@@ -150,8 +138,8 @@ static int tweak_set_configuration_cmd(struct libusb_transfer *trx)
 	 * A user may need to set a special configuration value before
 	 * exporting the device.
 	 */
-	devh_info(trx->dev_handle,
-		"usb_set_configuration %d ... skip!\n",
+	dev_info(libusb_get_device(trx->dev_handle),
+		"usb_set_configuration %d ... skip!",
 		config);
 
 	return 0;
@@ -162,7 +150,7 @@ static int tweak_reset_device_cmd(struct libusb_transfer *trx)
 	struct stub_priv *priv = (struct stub_priv *) trx->user_data;
 	struct stub_device *sdev = priv->sdev;
 
-	devh_info(trx->dev_handle, "usb_queue_reset_device\n");
+	dev_info(libusb_get_device(trx->dev_handle), "usb_queue_reset_device");
 
 	/*
 	 * With the implementation of pre_reset and post_reset the driver no
@@ -202,7 +190,7 @@ static void tweak_special_requests(struct libusb_transfer *trx)
 	else if (is_reset_device_cmd(trx))
 		tweak_reset_device_cmd(trx);
 	else
-		usbip_dbg_stub_rx("no need to tweak\n");
+		usbip_dbg_stub_rx("no need to tweak");
 }
 
 /*
@@ -227,7 +215,7 @@ static int stub_recv_cmd_unlink(struct stub_device *sdev,
 		if (priv->seqnum != pdu->u.cmd_unlink.seqnum)
 			continue;
 
-		devh_info(priv->trx->dev_handle, "unlink urb %p\n", priv->trx);
+		dev_info(libusb_get_device(priv->trx->dev_handle), "unlink urb %p", priv->trx);
 
 		/*
 		 * This matched urb is not completed yet (i.e., be in
@@ -266,18 +254,18 @@ static int stub_recv_cmd_unlink(struct stub_device *sdev,
 		 */
 		ret = libusb_cancel_transfer(priv->trx);
 		if (ret == LIBUSB_ERROR_NOT_FOUND) {
-			devh_err(priv->trx->dev_handle,
-				"failed to unlink a urb completed urb%p\n",
+			dev_err(libusb_get_device(priv->trx->dev_handle),
+				"failed to unlink a urb completed urb%p",
 				priv->trx);
 		} else if (ret) {
-			devh_err(priv->trx->dev_handle,
-				"failed to unlink a urb %p, ret %d\n",
+			dev_err(libusb_get_device(priv->trx->dev_handle),
+				"failed to unlink a urb %p, ret %d",
 				priv->trx, ret);
 		}
 		return 0;
 	}
 
-	usbip_dbg_stub_rx("seqnum %d is not pending\n",
+	usbip_dbg_stub_rx("seqnum %d is not pending",
 			  pdu->u.cmd_unlink.seqnum);
 
 	/*
@@ -307,7 +295,7 @@ static int valid_request(struct stub_device *sdev, struct usbip_header *pdu)
 		pthread_mutex_unlock(&ud->lock);
 	}
 	if (!valid) {
-		devh_err(sdev->dev_handle, "invalid request %08x:%08x(%d)\n",
+		dev_err(sdev->dev, "invalid request %08x:%08x(%d)",
 			pdu->base.devid, sdev->devid, ud->status);
 	}
 	return valid;
@@ -323,7 +311,7 @@ static struct stub_priv *stub_priv_alloc(struct stub_device *sdev,
 
 	priv = (struct stub_priv *)calloc(1, sizeof(struct stub_priv));
 	if (!priv) {
-		devh_err(sdev->dev_handle, "alloc stub_priv\n");
+		dev_err(sdev->dev, "alloc stub_priv");
 		pthread_mutex_unlock(&sdev->priv_lock);
 		usbip_event_add(ud, SDEV_EVENT_ERROR_MALLOC);
 		return NULL;
@@ -415,7 +403,7 @@ static void stub_recv_cmd_submit(struct stub_device *sdev,
 		num_iso_packets = pdu->u.cmd_submit.number_of_packets;
 	trx = libusb_alloc_transfer(num_iso_packets);
 	if (!trx) {
-		devh_err(dev_handle, "malloc trx\n");
+		dev_err(sdev->dev, "malloc trx");
 		usbip_event_add(ud, SDEV_EVENT_ERROR_MALLOC);
 		return;
 	}
@@ -471,10 +459,10 @@ static void stub_recv_cmd_submit(struct stub_device *sdev,
 	ret = libusb_submit_transfer(priv->trx);
 
 	if (ret == 0)
-		usbip_dbg_stub_rx("submit %p ok, seqnum %u\n",
+		usbip_dbg_stub_rx("submit %p ok, seqnum %u",
 				  trx, pdu->base.seqnum);
 	else {
-		devh_err(dev_handle, "submit_urb error, %d\n", ret);
+		dev_err(sdev->dev, "submit_urb error, %d", ret);
 		usbip_dump_header(pdu);
 		usbip_dump_trx(trx);
 		libusb_free_transfer(trx);
@@ -486,7 +474,7 @@ static void stub_recv_cmd_submit(struct stub_device *sdev,
 		usbip_event_add(ud, SDEV_EVENT_ERROR_SUBMIT);
 	}
 
-	usbip_dbg_stub_rx("Leave\n");
+	usbip_dbg_stub_rx("Leave");
 }
 
 /* recv a pdu */
@@ -496,7 +484,7 @@ static void stub_rx_pdu(struct usbip_device *ud)
 	struct usbip_header pdu;
 	struct stub_device *sdev = container_of(ud, struct stub_device, ud);
 
-	usbip_dbg_stub_rx("Enter\n");
+	usbip_dbg_stub_rx("Enter");
 again:
 	memset(&pdu, 0, sizeof(pdu));
 
@@ -504,7 +492,7 @@ again:
 	ret = usbip_recv(ud, &pdu, sizeof(pdu));
 
 	if (ret != sizeof(pdu)) {
-		devh_err(sdev->dev_handle, "recv a header, %d\n", ret);
+		dev_err(sdev->dev, "recv a header, %d", ret);
 		usbip_event_add(ud, SDEV_EVENT_ERROR_TCP);
 		return;
 	}
@@ -515,12 +503,12 @@ again:
 		usbip_dump_header(&pdu);
 
 	if (pdu.base.command == USBIP_NOP) {
-		usbip_dbg_stub_rx("nop command\n");
+		usbip_dbg_stub_rx("nop command");
 		goto again;
 	}
 
 	if (!valid_request(sdev, &pdu)) {
-		devh_err(sdev->dev_handle, "recv invalid request\n");
+		dev_err(sdev->dev, "recv invalid request");
 		usbip_event_add(ud, SDEV_EVENT_ERROR_TCP);
 		return;
 	}
@@ -534,7 +522,7 @@ again:
 		break;
 	default:
 		/* NOTREACHED */
-		devh_err(sdev->dev_handle, "unknown pdu\n");
+		dev_err(sdev->dev, "unknown pdu");
 		usbip_event_add(ud, SDEV_EVENT_ERROR_TCP);
 		break;
 	}
@@ -551,6 +539,6 @@ void *stub_rx_loop(void *data)
 
 		stub_rx_pdu(ud);
 	}
-	usbip_dbg_stub_rx("end of stub_rx_loop\n");
+	usbip_dbg_stub_rx("end of stub_rx_loop");
 	return NULL;
 }

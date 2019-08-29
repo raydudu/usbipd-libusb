@@ -21,7 +21,7 @@ add_executable(${PROJECT_NAME}
         src/usbip_network.h
         src/usbipd_dev.c
         src/usbipd.c
-        src/usbipd.h
+        src/usbipd_dev.h
         driver-libusb/stub.h
         driver-libusb/stub_common.c
         driver-libusb/stub_common.h
@@ -29,6 +29,6 @@ add_executable(${PROJECT_NAME}
         driver-libusb/stub_event.c
         driver-libusb/stub_main.c
         driver-libusb/stub_rx.c
-        driver-libusb/stub_tx.c include/usbip_host_driver.h)
+        driver-libusb/stub_tx.c include/usbip_host_driver.h include/usbip_debug.h src/usbip_debug.c)
 target_include_directories(${PROJECT_NAME} PRIVATE ${LIBUSB_INCLUDE_DIR})
 target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBUSB_LIBRARY} pthread)

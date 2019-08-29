@@ -17,12 +17,11 @@ void usbip_setup_port_number(char *arg);
 
 /* ---------------------------------------------------------------------- */
 /* Common header for all the kinds of PDUs. */
-PACK(
 struct op_common {
 	uint16_t version;
 	uint16_t code;
 	uint32_t status; /* op_code status (for reply) */
-});
+} __attribute__((packed));
 
 #define OP_REQUEST	(0x80 << 8)
 #define OP_REPLY	(0x00 << 8)
@@ -51,16 +50,14 @@ struct op_common {
 #define OP_REQ_DEVINFO	(OP_REQUEST | OP_DEVINFO)
 #define OP_REP_DEVINFO	(OP_REPLY   | OP_DEVINFO)
 
-PACK(
 struct op_devinfo_request {
 	char busid[SYSFS_BUS_ID_SIZE];
-});
+} __attribute__((packed));
 
-PACK(
 struct op_devinfo_reply {
 	struct usbip_usb_device udev;
 	struct usbip_usb_interface uinf[];
-});
+} __attribute__((packed));
 
 /* ---------------------------------------------------------------------- */
 /* Import a remote USB device. */
@@ -68,16 +65,14 @@ struct op_devinfo_reply {
 #define OP_REQ_IMPORT	(OP_REQUEST | OP_IMPORT)
 #define OP_REP_IMPORT   (OP_REPLY   | OP_IMPORT)
 
-PACK(
 struct op_import_request {
 	char busid[SYSFS_BUS_ID_SIZE];
-});
+} __attribute__((packed));
 
-PACK(
 struct op_import_reply {
 	struct usbip_usb_device udev;
 //	struct usbip_usb_interface uinf[];
-});
+} __attribute__((packed));
 
 #define PACK_OP_IMPORT_REQUEST(pack, request)  do {\
 } while (0)
@@ -92,15 +87,14 @@ struct op_import_reply {
 #define OP_REQ_EXPORT	(OP_REQUEST | OP_EXPORT)
 #define OP_REP_EXPORT	(OP_REPLY   | OP_EXPORT)
 
-PACK(
 struct op_export_request {
 	struct usbip_usb_device udev;
-});
+} __attribute__((packed));
 
 #ifndef USBIP_OS_NO_EMPTY_STRUCT
-PACK(
+
 struct op_export_reply {
-});
+} __attribute__((packed));
 #endif
 
 #define PACK_OP_EXPORT_REQUEST(pack, request)  do {\
@@ -116,15 +110,13 @@ struct op_export_reply {
 #define OP_REQ_UNEXPORT	(OP_REQUEST | OP_UNEXPORT)
 #define OP_REP_UNEXPORT	(OP_REPLY   | OP_UNEXPORT)
 
-PACK(
 struct op_unexport_request {
 	struct usbip_usb_device udev;
-});
+} __attribute__((packed));
 
 #ifndef USBIP_OS_NO_EMPTY_STRUCT
-PACK(
 struct op_unexport_reply {
-});
+} __attribute__((packed));
 #endif
 
 #define PACK_OP_UNEXPORT_REQUEST(pack, request)  do {\
@@ -140,16 +132,14 @@ struct op_unexport_reply {
 #define OP_REQ_CRYPKEY	(OP_REQUEST | OP_CRYPKEY)
 #define OP_REP_CRYPKEY	(OP_REPLY   | OP_CRYPKEY)
 
-PACK(
 struct op_crypkey_request {
 	/* 128bit key */
 	uint32_t key[4];
-});
+} __attribute__((packed));
 
-PACK(
 struct op_crypkey_reply {
 	uint32_t __reserved;
-});
+} __attribute__((packed));
 
 
 /* ---------------------------------------------------------------------- */
@@ -159,22 +149,19 @@ struct op_crypkey_reply {
 #define OP_REP_DEVLIST	(OP_REPLY   | OP_DEVLIST)
 
 #ifndef USBIP_OS_NO_EMPTY_STRUCT
-PACK(
 struct op_devlist_request {
-});
+} __attribute__((packed));
 #endif
 
-PACK(
 struct op_devlist_reply {
 	uint32_t ndev;
 	/* followed by reply_extra[] */
-});
+} __attribute__((packed));
 
-PACK(
 struct op_devlist_reply_extra {
 	struct usbip_usb_device    udev;
 	struct usbip_usb_interface uinf[];
-});
+} __attribute__((packed));
 
 #define PACK_OP_DEVLIST_REQUEST(pack, request)  do {\
 } while (0)

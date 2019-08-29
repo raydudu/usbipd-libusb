@@ -33,6 +33,8 @@
 #include <stdio.h>
 #include <ctype.h>
 
+#include <usbip_debug.h>
+
 #include "names.h"
 
 struct vendor {

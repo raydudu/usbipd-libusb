@@ -26,9 +26,10 @@
 
 /* Define to the full name and version of this package. */
 #define PACKAGE_STRING "usbip-libusb 2.0"
-#define PACKAGE "usbip-libusb"
+#define PACKAGE "usbipd"
 
 #define USBIDS_FILE "/usr/share/hwdata/usb.ids"
+#define DEFAULT_PID_FILE "/var/run/" PACKAGE ".pid"
 
 #define USBIP_OS_NO_DAEMON
 //#define USBIP_OS_HAVE_CONTAINER_OF // list.h config

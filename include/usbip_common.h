@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2005-2007 Takahiro Hirofuchi
  * Copyright (C) 2015-2016 Nobuo Iwata <nobuo.iwata@fujixerox.co.jp>
@@ -23,43 +24,13 @@
 
 #define SYSFS_PATH_MAX		256
 #define SYSFS_BUS_ID_SIZE	32
-#ifndef SYSFS_NAME_LEN
-#define SYSFS_NAME_LEN          64
-#endif
-
-extern int usbip_use_debug;
-
-#define pr_fmt(fmt)	"%s: %s: " fmt "\n", PACKAGE
-
-#ifndef USBIP_OS_NO_NR_ARGS
-#define dbg_fmt(fmt)	pr_fmt("%s:%d:[%s] " fmt), "debug",	\
-		        __FILE__, __LINE__, __func__
-
-#define err(fmt, args...)						\
-	do {								\
-			fprintf(stderr, pr_fmt(fmt), "error", ##args);	\
-	} while (0)
-
-#define info(fmt, args...)						\
-	do {								\
-			fprintf(stderr, pr_fmt(fmt), "info", ##args);	\
-	} while (0)
-
-#define dbg(fmt, args...)						\
-	do {								\
-	if (usbip_use_debug) {						\
-			fprintf(stderr, dbg_fmt(fmt), ##args);		\
-	}								\
-	} while (0)
-#endif /* !USBIP_OS_NO_NR_ARGS */
-
 
 struct usbip_usb_interface {
 	uint8_t bInterfaceClass;
 	uint8_t bInterfaceSubClass;
 	uint8_t bInterfaceProtocol;
-	uint8_t bInterfaceNumber;
-} __attribute__((__packed__));
+	uint8_t bInterfaceNumber; //TODO in original implementation: uint8_t padding;	/* alignment */
+} __attribute__((packed));
 
 struct usbip_usb_device {
 	char path[SYSFS_PATH_MAX];

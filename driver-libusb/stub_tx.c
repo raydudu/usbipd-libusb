@@ -1,22 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2003-2008 Takahiro Hirofuchi
  * Copyright (C) 2015-2016 Nobuo Iwata <nobuo.iwata@fujixerox.co.jp>
- *
- * This is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "stub.h"
+#include <usbip_debug.h>
 
 static void stub_free_priv_and_trx(struct stub_priv *priv)
 {
@@ -25,7 +14,7 @@ static void stub_free_priv_and_trx(struct stub_priv *priv)
 	free(trx->buffer);
 	list_del(&priv->list);
 	free(priv);
-	usbip_dbg_stub_tx("freeing trx %p\n", trx);
+	usbip_dbg_stub_tx("freeing trx %p", trx);
 	libusb_free_transfer(trx);
 }
 
@@ -61,30 +50,31 @@ void LIBUSB_CALL stub_complete(struct libusb_transfer *trx)
 	struct stub_priv *priv = (struct stub_priv *) trx->user_data;
 	struct stub_device *sdev = priv->sdev;
 
-	usbip_dbg_stub_tx("complete %p! status %d\n", trx, trx->status);
+	usbip_dbg_stub_tx("complete %p! status %d", trx, trx->status);
 
 	switch (trx->status) {
 	case LIBUSB_TRANSFER_COMPLETED:
 		/* OK */
 		break;
 	case LIBUSB_TRANSFER_ERROR:
-		devh_info(trx->dev_handle,
-			"error on endpoint %d\n", trx->endpoint);
+	    if (!trx->flags & LIBUSB_TRANSFER_SHORT_NOT_OK) {
+            dev_info(sdev->dev, "error on endpoint %d", trx->endpoint);
+        }
 		break;
 	case LIBUSB_TRANSFER_CANCELLED:
-		devh_info(trx->dev_handle,
-			"unlinked by a call to usb_unlink_urb()\n");
+		dev_info(sdev->dev,
+			"unlinked by a call to usb_unlink_urb()");
 		break;
 	case LIBUSB_TRANSFER_STALL:
-		devh_info(trx->dev_handle,
-			"endpoint %d is stalled\n", trx->endpoint);
+		dev_info(sdev->dev,
+			"endpoint %d is stalled", trx->endpoint);
 		break;
 	case LIBUSB_TRANSFER_NO_DEVICE:
-		devh_info(trx->dev_handle, "device removed?\n");
+		dev_info(sdev->dev, "device removed?");
 		break;
 	default:
-		devh_info(trx->dev_handle,
-			"urb completion with non-zero status %d\n",
+		dev_info(sdev->dev,
+			"urb completion with non-zero status %d",
 			trx->status);
 		break;
 	}
@@ -92,7 +82,7 @@ void LIBUSB_CALL stub_complete(struct libusb_transfer *trx)
 	/* link a urb to the queue of tx. */
 	pthread_mutex_lock(&sdev->priv_lock);
 	if (!sdev->ud.sock_fd) {
-		devh_info(trx->dev_handle,
+		dev_info(sdev->dev,
 			"urb discarded in closed connection");
 	} else if (priv->unlinking) {
 		stub_enqueue_ret_unlink(sdev, priv->seqnum, trx->status);
@@ -200,7 +190,7 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 
 		/* 1. setup usbip_header */
 		setup_ret_submit_pdu(&pdu_header, trx);
-		usbip_dbg_stub_tx("setup txdata seqnum: %d trx: %p actl: %d\n",
+		usbip_dbg_stub_tx("setup txdata seqnum: %d trx: %p actl: %d",
 			  pdu_header.base.seqnum, trx, trx->actual_length);
 		usbip_header_correct_endian(&pdu_header, 1);
 
@@ -240,11 +230,11 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 			}
 
 			if (txsize != sizeof(pdu_header) + trx->actual_length) {
-				devh_err(sdev->dev_handle,
+				dev_err(sdev->dev,
 					"actual length of urb %d does not ",
 					trx->actual_length);
-				devh_err(sdev->dev_handle,
-					"match iso packet sizes %zu\n",
+				dev_err(sdev->dev,
+					"match iso packet sizes %zu",
 					txsize-sizeof(pdu_header));
 				free(iov);
 				usbip_event_add(&sdev->ud,
@@ -273,8 +263,8 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 
 		sent = usbip_sendmsg(&sdev->ud, iov,  iovnum);
 		if (sent != txsize) {
-			devh_err(sdev->dev_handle,
-				"sendmsg failed!, retval %zd for %zd\n",
+			dev_err(sdev->dev,
+				"sendmsg failed!, retval %zd for %zd",
 				sent, txsize);
 			free(iov);
 			free(iso_buffer);
@@ -335,7 +325,7 @@ static int stub_send_ret_unlink(struct stub_device *sdev)
 		memset(&pdu_header, 0, sizeof(pdu_header));
 		memset(&iov, 0, sizeof(iov));
 
-		usbip_dbg_stub_tx("setup ret unlink %lu\n", unlink->seqnum);
+		usbip_dbg_stub_tx("setup ret unlink %lu", unlink->seqnum);
 
 		/* 1. setup usbip_header */
 		setup_ret_unlink_pdu(&pdu_header, unlink);
@@ -347,14 +337,14 @@ static int stub_send_ret_unlink(struct stub_device *sdev)
 
 		sent = usbip_sendmsg(&sdev->ud, iov, 1);
 		if (sent != txsize) {
-			devh_err(sdev->dev_handle,
-				"sendmsg failed!, retval %zd for %zd\n",
+			dev_err(sdev->dev,
+				"sendmsg failed!, retval %zd for %zd",
 				sent, txsize);
 			usbip_event_add(&sdev->ud, SDEV_EVENT_ERROR_TCP);
 			return -1;
 		}
 
-		usbip_dbg_stub_tx("send txdata\n");
+		usbip_dbg_stub_tx("send txdata");
 		total_size += txsize;
 	}
 
@@ -415,6 +405,6 @@ void *stub_tx_loop(void *data)
 			break;
 
 	}
-	usbip_dbg_stub_tx("end of stub_tx_loop\n");
+	usbip_dbg_stub_tx("end of stub_tx_loop");
 	return NULL;
 }

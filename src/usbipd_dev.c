@@ -22,14 +22,14 @@
 #include "usbip_host_driver.h"
 #include "usbip_common.h"
 #include "usbip_network.h"
-#include "usbipd.h"
+#include "usbipd_dev.h"
 #include "list.h"
 
-char *usbip_progname = PACKAGE;
-char *usbip_default_pid_file = "/var/run/usbipd";
+#include <usbip_debug.h>
 
-static int recv_request_import(int sock_fd,
-			       const char *host, const char *port)
+
+static int recv_request_attach(int sock_fd,
+                               const char *host, const char *port)
 {
 	struct usbip_exported_devices edevs;
 	struct usbip_exported_device *edev;
@@ -197,7 +197,7 @@ static int recv_request_devlist(int sock_fd,
 
 struct usbipd_recv_pdu_op usbipd_recv_pdu_ops[] = {
 	{OP_REQ_DEVLIST, recv_request_devlist},
-	{OP_REQ_IMPORT, recv_request_import},
+	{OP_REQ_IMPORT,  recv_request_attach},
 	{OP_REQ_DEVINFO, NULL},
 	{OP_REQ_CRYPKEY, NULL},
 	{OP_UNSPEC, NULL}

@@ -18,6 +18,8 @@
 
 #include "stub.h"
 
+#include <usbip_debug.h>
+
 static unsigned long event_get(struct usbip_device *ud)
 {
 	unsigned long event;
@@ -34,12 +36,12 @@ static int event_handler(struct usbip_device *ud)
 {
 	unsigned long event = event_get(ud);
 
-	usbip_dbg_eh("enter event_handler\n");
+	usbip_dbg_eh("enter event_handler");
 
 	/*
 	 * Events are handled by only this thread.
 	 */
-	usbip_dbg_eh("pending event %lx\n", event);
+	usbip_dbg_eh("pending event %lx", event);
 
 	/*
 	 * NOTE: shutdown must come first.
@@ -69,7 +71,7 @@ static void *event_handler_loop(void *data)
 
 	while (!ud->eh_should_stop) {
 		pthread_mutex_lock(&ud->eh_waitq);
-		usbip_dbg_eh("wakeup\n");
+		usbip_dbg_eh("wakeup");
 
 		if (event_handler(ud) < 0)
 			break;
@@ -85,7 +87,7 @@ int usbip_start_eh(struct usbip_device *ud)
 	ud->event = 0;
 
 	if (pthread_create(&ud->eh, NULL, event_handler_loop, ud)) {
-		pr_warn("Unable to start control thread\n");
+		warn("Unable to start control thread");
 		return -1;
 	}
 	return 0;
@@ -93,7 +95,7 @@ int usbip_start_eh(struct usbip_device *ud)
 
 void usbip_stop_eh(struct usbip_device *ud)
 {
-	usbip_dbg_eh("finishing usbip_eh\n");
+	usbip_dbg_eh("finishing usbip_eh");
 	ud->eh_should_stop = 1;
 	pthread_mutex_unlock(&ud->eh_waitq);
 }

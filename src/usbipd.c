@@ -44,12 +44,13 @@
 
 #include <pthread.h>
 #include <usbip_host_driver.h>
+#include <usbip_debug.h>
 
 #endif
 
 #include "usbip_common.h"
 #include "usbip_network.h"
-#include "usbipd.h"
+#include "usbipd_dev.h"
 #include "list.h"
 #include "names.h"
 
@@ -57,10 +58,8 @@
 
 #define MAIN_LOOP_TIMEOUT 10
 
-static const char usbip_version_string[] = PACKAGE_STRING;
-
 static const char usbipd_help_string[] =
-        "usage: %s [options]\n"
+        "usage: " PACKAGE " [options]\n"
         "\n"
         "	-4, --ipv4\n"
         "		Bind to IPv4. Default is both.\n"
@@ -86,7 +85,7 @@ static const char usbipd_help_string[] =
         "\n"
         "	-PFILE, --pid FILE\n"
         "		Write process id to FILE.\n"
-        "		If no FILE specified, use %s.\n"
+        "		If no FILE specified, use " DEFAULT_PID_FILE ".\n"
         "\n"
         "	-tPORT, --tcp-port PORT\n"
         "		Listen on TCP/IP port PORT.\n"
@@ -98,7 +97,7 @@ static const char usbipd_help_string[] =
         "		Show version.\n";
 
 static void usbipd_help(void) {
-    printf(usbipd_help_string, usbip_progname, usbip_default_pid_file);
+    printf(usbipd_help_string);
 }
 
 int usbipd_recv_pdu(int sock_fd, const char *host, const char *port) {
@@ -378,7 +377,7 @@ static int do_standalone_mode(int daemonize, int ipv4, int ipv6) {
     set_signal();
     write_pid_file();
 
-    info("starting %s (%s)", usbip_progname, usbip_version_string);
+    info("starting %s (%s)", PACKAGE, PACKAGE_STRING);
 
     /*
      * To suppress warnings on systems with bindv6only disabled
@@ -439,7 +438,7 @@ static int do_standalone_mode(int daemonize, int ipv4, int ipv6) {
         }
     }
 
-    info("shutting down %s", usbip_progname);
+    info("shutting down %s", PACKAGE);
     free(fds);
     usbip_driver_close();
 
@@ -508,13 +507,13 @@ int main(int argc, char *argv[]) {
                 usbip_use_debug = 1;
                 break;
             case 'f':
-                usbip_libusb_debug = strtoul(optarg, NULL, 16);
+                usbip_stub_debug_flags = strtoul(optarg, NULL, 16);
                 break;
             case 'h':
                 cmd = cmd_help;
                 break;
             case 'P':
-                pid_file = optarg ? optarg : usbip_default_pid_file;
+                pid_file = optarg ? optarg : DEFAULT_PID_FILE;
                 break;
             case 't':
                 usbip_setup_port_number(optarg);
@@ -546,7 +545,7 @@ int main(int argc, char *argv[]) {
             remove_pid_file();
             break;
         case cmd_version:
-            printf("%s (%s)\n", usbip_progname, usbip_version_string);
+            printf("%s (%s)\n", PACKAGE, PACKAGE_STRING);
             rc = 0;
             break;
         case cmd_help:

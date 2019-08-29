@@ -26,6 +26,8 @@
 
 #include <string.h>
 
+#include <usbip_debug.h>
+
 #include "usbip_common.h"
 #include "usbip_network.h"
 
@@ -203,8 +205,7 @@ int usbip_net_recv_op_common(int sock_fd, uint16_t *code)
 	PACK_OP_COMMON(0, &op_common);
 
 	if (op_common.version != USBIP_VERSION) {
-		dbg("version mismatch: %d %d", op_common.version,
-		    USBIP_VERSION);
+		dbg("version mismatch: %d %d", op_common.version, USBIP_VERSION);
 		goto err;
 	}
 
