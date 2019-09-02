@@ -268,9 +268,11 @@ static struct usbip_exported_device *exported_device_new(
 	struct usbip_exported_device *edev;
 	struct stub_edev_data *edev_data;
 	int num_eps;
+	int ret;
 
-	if (libusb_get_active_config_descriptor(dev, &config)) {
-		err("get device config");
+	ret = libusb_get_active_config_descriptor(dev, &config);
+	if (ret != LIBUSB_SUCCESS) {
+		err("get device config: %d", ret);
 		goto err_out;
 	}
 
@@ -287,8 +289,10 @@ static struct usbip_exported_device *exported_device_new(
 		err("alloc edev");
 		goto err_free_config;
 	}
+/*
 	edev_data =
 		(struct stub_edev_data *)(edev->uinf + config->bNumInterfaces);
+*/
 
 	__fill_usb_device(&edev->udev, dev, desc, config);
 	fill_usb_interfaces(edev->uinf, config);
@@ -337,10 +341,7 @@ int usbip_refresh_device_list(struct usbip_exported_devices *edevs) {
 	for (i = 0; i < num; i++) {
 		dev = *(devs + i);
 		get_busid(dev, busid);
-/*
-		if (!stub_find_exported_device(busid))
-			continue;
-*/
+
 		if (libusb_get_device_descriptor(dev, &desc)) {
 			err("get device desc %s", busid);
 			goto err_free_list;
@@ -350,8 +351,10 @@ int usbip_refresh_device_list(struct usbip_exported_devices *edevs) {
 			continue;
 		}
 		edev = exported_device_new(dev, &desc);
-		if (!edev)
-			goto err_out;
+		if (!edev) {
+		    info("Unable to get device configuration for %s, skip", busid);
+            continue;
+        }
 		list_add(&edev->node, &edevs->edev_list);
 		edevs->ndevs++;
 	}

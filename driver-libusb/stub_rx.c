@@ -50,7 +50,7 @@ static int is_reset_device_cmd(struct libusb_transfer *trx)
 	index = libusb_cpu_to_le16(req->wIndex);
 
 	if ((req->bRequest == LIBUSB_REQUEST_SET_FEATURE) &&
-	    (request_type == USB_RT_PORT) &&
+	    (request_type == 	(LIBUSB_REQUEST_TYPE_CLASS | LIBUSB_RECIPIENT_OTHER)) &&
 	    (value == USB_PORT_FEAT_RESET)) {
 		usbip_dbg_stub_rx("reset_device_cmd, port %u", index);
 		return 1;
