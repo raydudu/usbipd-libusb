@@ -75,15 +75,14 @@ static int recv_request_attach(int sock_fd,
 		error = 1;
 	}
 
-	rc = usbip_net_send_op_common(sock_fd, OP_REP_IMPORT,
-                                  (!error ? ST_OK : ST_NA));
+	rc = usbip_net_send_op_common(sock_fd, OP_REP_IMPORT, (!error ? ST_OK : ST_NA));
 	if (rc < 0) {
 		dbg("usbip_net_send_op_common failed: %#0x", OP_REP_IMPORT);
 		goto err_free_edevs;
 	}
 
 	if (error) {
-		dbg("import request busid %s: failed", req.busid);
+		dbg("import request busid %s: failed: %d", req.busid, error);
 		goto err_free_edevs;
 	}
 

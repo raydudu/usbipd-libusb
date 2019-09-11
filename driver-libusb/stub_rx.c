@@ -489,7 +489,11 @@ again:
 	ret = usbip_recv(ud, &pdu, sizeof(pdu));
 
 	if (ret != sizeof(pdu)) {
-		dev_err(sdev->dev, "recv a header, %d", ret);
+	    if (ret != 0) {
+            dev_err(sdev->dev, "recv a header, %d", ret);
+        } else {
+	        dev_info(sdev->dev, "disconnect from client");
+	    }
 		usbip_event_add(ud, SDEV_EVENT_ERROR_TCP);
 		return;
 	}

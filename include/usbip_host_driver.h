@@ -17,10 +17,6 @@ struct usbip_exported_device {
 };
 
 /* API to be implemented by the driver */
-int usbip_driver_open(void);
-
-void usbip_driver_close(void);
-
 int usbip_refresh_device_list(struct usbip_exported_devices *edevs);
 
 int usbip_free_device_list(struct usbip_exported_devices *edevs);

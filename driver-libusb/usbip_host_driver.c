@@ -523,17 +523,18 @@ static void release_interface(libusb_device_handle *dev_handle,
 
 	if (force || intf->claimed) {
 		ret = libusb_release_interface(dev_handle, nr);
-		if (ret == 0)
+		if (ret == LIBUSB_SUCCESS)
 			intf->claimed = 0;
 		else
 			dbg("failed to release interface %d by %d", nr, ret);
 	}
 	if (force || intf->detached) {
 		ret = libusb_attach_kernel_driver(dev_handle, nr);
-		if (ret == 0)
+
+		if (ret == LIBUSB_SUCCESS || ret == LIBUSB_ERROR_NOT_FOUND || ret == LIBUSB_ERROR_NOT_SUPPORTED)
 			intf->detached = 0;
 		else
-			dbg("failed to attach interface %d by %d", nr, ret);
+			err("failed to attach interface %d by %d", nr, ret);
 	}
 }
 
@@ -596,17 +597,14 @@ int usbip_export_device(struct usbip_exported_device *edev, int sock_fd) {
 	ret = libusb_open(sdev->dev, &sdev->dev_handle);
 	if (ret) {
 		if (ret == LIBUSB_ERROR_ACCESS)
-			err("access denied to open device %s",
-					edev->udev.busid);
+			err("access denied to open device %s", edev->udev.busid);
 		else
-			err("failed to open device %s by %d",
-					edev->udev.busid, ret);
+			err("failed to open device %s by %d", edev->udev.busid, ret);
 
 		goto err_out;
 	}
 
-	if (claim_interfaces(sdev->dev_handle, sdev->udev.bNumInterfaces,
-			     sdev->ifs)) {
+	if (claim_interfaces(sdev->dev_handle, sdev->udev.bNumInterfaces, sdev->ifs)) {
 		err("claim interfaces %s", edev->udev.busid);
 		goto err_close_lib;
 	}

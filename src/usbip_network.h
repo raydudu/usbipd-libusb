@@ -113,13 +113,6 @@ struct op_unexport_reply {
 } __attribute__((packed));
 #endif
 
-#define PACK_OP_UNEXPORT_REQUEST(pack, request)  do {\
-	usbip_net_pack_usb_device(pack, &(request)->udev);\
-} while (0)
-
-#define PACK_OP_UNEXPORT_REPLY(pack, reply)  do {\
-} while (0)
-
 /* ---------------------------------------------------------------------- */
 /* Negotiate IPSec encryption key. (still not used) */
 #define OP_CRYPKEY	0x04
