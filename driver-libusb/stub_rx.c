@@ -6,6 +6,8 @@
 
 #include "stub.h"
 #include <usbip_debug.h>
+#include <errno.h>
+#include <unistd.h>
 
 static int is_clear_halt_cmd(struct libusb_transfer *trx)
 {
@@ -43,6 +45,7 @@ static int is_reset_device_cmd(struct libusb_transfer *trx)
 	struct libusb_control_setup *req =
 			libusb_control_transfer_get_setup(trx);
 	uint8_t request_type = get_request_type(req->bmRequestType);
+    uint8_t recip = get_recipient(req->bmRequestType);
 	uint16_t value;
 	uint16_t index;
 
@@ -50,7 +53,8 @@ static int is_reset_device_cmd(struct libusb_transfer *trx)
 	index = libusb_cpu_to_le16(req->wIndex);
 
 	if ((req->bRequest == LIBUSB_REQUEST_SET_FEATURE) &&
-	    (request_type == 	(LIBUSB_REQUEST_TYPE_CLASS | LIBUSB_RECIPIENT_OTHER)) &&
+	    (request_type == LIBUSB_REQUEST_TYPE_CLASS) &&
+         (recip == LIBUSB_RECIPIENT_OTHER) &&
 	    (value == USB_PORT_FEAT_RESET)) {
 		usbip_dbg_stub_rx("reset_device_cmd, port %u", index);
 		return 1;
@@ -143,7 +147,7 @@ static int tweak_set_configuration_cmd(struct libusb_transfer *trx)
 		"usb_set_configuration %d ... skip!",
 		config);
 
-	return 0;
+	return -1;
 }
 
 static int tweak_reset_device_cmd(struct libusb_transfer *trx)
@@ -157,41 +161,41 @@ static int tweak_reset_device_cmd(struct libusb_transfer *trx)
 	 * With the implementation of pre_reset and post_reset the driver no
 	 * longer unbinds. This allows the use of synchronous reset.
 	 */
-	libusb_reset_device(sdev->dev_handle);
-
-	return 0;
+    //libusb_reset_device(sdev->dev_handle);
+    return 0;
 }
 
 /*
  * clear_halt, set_interface, and set_configuration require special tricks.
  */
-static void tweak_special_requests(struct libusb_transfer *trx)
-{
+static int tweak_special_requests(struct libusb_transfer *trx) {
 	struct libusb_control_setup *req;
 
 	if (!trx)
-		return;
+		return -1;
 
 	req = libusb_control_transfer_get_setup(trx);
 	if (!req)
-		return;
+		return -1;
 
 	if (trx->type != LIBUSB_TRANSFER_TYPE_CONTROL)
-		return;
+		return -1;
 
 	if (is_clear_halt_cmd(trx))
-		tweak_clear_halt_cmd(trx);
+		return tweak_clear_halt_cmd(trx);
 
 	else if (is_set_interface_cmd(trx))
-		tweak_set_interface_cmd(trx);
+        return tweak_set_interface_cmd(trx);
 
 	else if (is_set_configuration_cmd(trx))
-		tweak_set_configuration_cmd(trx);
+        return tweak_set_configuration_cmd(trx);
 
 	else if (is_reset_device_cmd(trx))
-		tweak_reset_device_cmd(trx);
+        return tweak_reset_device_cmd(trx);
 	else
 		usbip_dbg_stub_rx("no need to tweak");
+
+    return -1;
 }
 
 /*
@@ -282,6 +286,7 @@ static int stub_recv_cmd_unlink(struct stub_device *sdev,
 	return 0;
 }
 
+/*
 static int valid_request(struct stub_device *sdev, struct usbip_header *pdu)
 {
 	struct usbip_device *ud = &sdev->ud;
@@ -290,7 +295,9 @@ static int valid_request(struct stub_device *sdev, struct usbip_header *pdu)
 	if (pdu->base.devid == sdev->devid) {
 		pthread_mutex_lock(&ud->lock);
 		if (ud->status == SDEV_ST_USED) {
-			/* A request is valid. */
+			*/
+/* A request is valid. *//*
+
 			valid = 1;
 		}
 		pthread_mutex_unlock(&ud->lock);
@@ -301,6 +308,7 @@ static int valid_request(struct stub_device *sdev, struct usbip_header *pdu)
 	}
 	return valid;
 }
+*/
 
 static struct stub_priv *stub_priv_alloc(struct stub_device *sdev,
 					 struct usbip_header *pdu)
@@ -452,17 +460,28 @@ static void stub_recv_cmd_submit(struct stub_device *sdev,
 		return;
 
 	/* no need to submit an intercepted request, but harmless? */
-	tweak_special_requests(trx);
+	ret = tweak_special_requests(trx);
+    if (ret < 0) {
+        masking_bogus_flags(trx);
 
-	masking_bogus_flags(trx);
-
-	/* urb is now ready to submit */
-	ret = libusb_submit_transfer(priv->trx);
+        /* urb is now ready to submit */
+        ret = libusb_submit_transfer(priv->trx);
+    } else {
+        priv->trx->status = LIBUSB_TRANSFER_COMPLETED;
+        priv->trx->actual_length = 0;
+        pthread_mutex_unlock(&sdev->priv_lock);
+        list_del(&priv->list);
+        list_add(&priv->list, sdev->priv_tx.prev);
+        pthread_mutex_unlock(&sdev->priv_lock);
+        pthread_mutex_unlock(&sdev->tx_waitq); //wakeup sleepy
+        ret = 0;
+    }
 
 	if (ret == 0)
 		usbip_dbg_stub_rx("submit_urb ok %p seq %u", trx, pdu->base.seqnum);
 	else {
 		dev_err(sdev->dev, "submit_urb error, %d  seq %u", ret, pdu->base.seqnum);
+		dev_err(sdev->dev, "ERRNO: %s", strerror(errno));
 		usbip_dump_header(pdu);
 		usbip_dump_trx(trx);
 		libusb_free_transfer(trx);
@@ -508,11 +527,13 @@ again:
 		goto again;
 	}
 
+/*
 	if (!valid_request(sdev, &pdu)) {
 		dev_err(sdev->dev, "recv invalid request");
 		usbip_event_add(ud, SDEV_EVENT_ERROR_TCP);
 		return;
 	}
+*/
 
 	switch (pdu.base.command) {
 	case USBIP_CMD_UNLINK:

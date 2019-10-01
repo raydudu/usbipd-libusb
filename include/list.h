@@ -1,7 +1,9 @@
 #ifndef _LIST_H
 #define _LIST_H
 
-#include "usbip_common.h"
+#include <stddef.h>
+
+#include <usbip_config.h>
 
 /* Stripped down implementation of linked list taken
  * from the Linux Kernel.

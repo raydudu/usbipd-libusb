@@ -17,18 +17,16 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "usbip_config.h"
-
+#include <stdlib.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <netinet/tcp.h>
-
 #include <string.h>
-
 #include <usbip_debug.h>
 
-#include "usbip_common.h"
+#include "usbip_config.h"
+
 #include "usbip_network.h"
 
 int usbip_port = 3240;
@@ -61,71 +59,37 @@ void usbip_setup_port_number(char *arg)
 	info("using port %d (\"%s\")", usbip_port, usbip_port_string);
 }
 
-void usbip_net_pack_usb_device(int pack, struct usbip_usb_device *udev)
-{
-    if (pack) {
-        udev->busnum = htonl(udev->busnum);
-        udev->devnum = htonl(udev->devnum);
-        udev->speed = htonl(udev->speed);
-        udev->idVendor = htons(udev->idVendor);
-        udev->idProduct = htons(udev->idProduct);
-        udev->bcdDevice = htons(udev->bcdDevice);
-    } else {
-        udev->busnum = ntohl(udev->busnum);
-        udev->devnum = ntohl(udev->devnum);
-        udev->speed = ntohl(udev->speed);
-        udev->idVendor = ntohs(udev->idVendor);
-        udev->idProduct = ntohs(udev->idProduct);
-        udev->bcdDevice = ntohs(udev->bcdDevice);
+ssize_t usbip_net_recv(int sock_fd, void *buff, size_t bufflen) {
+    size_t recvd  = 0;
 
+    while(recvd != bufflen) {
+        int ret = recv(sock_fd, (char *)buff + recvd, bufflen - recvd, MSG_WAITALL);
+        if (ret <= 0) {
+            return ret;
+        }
+
+        recvd += ret;
     }
+
+    return recvd;
 }
 
-void usbip_net_pack_usb_interface(int pack,
-				  struct usbip_usb_interface *udev)
-{
-	/* uint8_t members need nothing */
-}
+ssize_t usbip_net_send(int sock_fd, void *buff, size_t bufflen) {
+    ssize_t total = 0;
 
-static ssize_t usbip_net_xmit(int sock_fd, void *buff,
-			      size_t bufflen, int sending)
-{
-	ssize_t nbytes;
-	ssize_t total = 0;
+    while (bufflen > 0) {
+        ssize_t ret = send(sock_fd, buff, bufflen, 0);
 
-	if (!bufflen)
-		return 0;
+        if (ret <= 0) {
+            return -1;
+        }
 
-	do {
-		if (sending) {
-            nbytes = send(sock_fd, buff, bufflen, 0);
-		} else {
-            nbytes = recv(sock_fd, buff, bufflen,MSG_WAITALL);
-		}
+        buff	 = (void *)((intptr_t) buff + ret);
+        bufflen	-= ret;
+        total	+= ret;
+    }
 
-		if (nbytes <= 0) {
-			if (!sending && nbytes == 0)
-				dbg("received zero - broken connection?");
-			return -1;
-		}
-
-		buff	 = (void *)((intptr_t) buff + nbytes);
-		bufflen	-= nbytes;
-		total	+= nbytes;
-
-	} while (bufflen > 0);
-
-	return total;
-}
-
-ssize_t usbip_net_recv(int sock_fd, void *buff, size_t bufflen)
-{
-	return usbip_net_xmit(sock_fd, buff, bufflen, 0);
-}
-
-ssize_t usbip_net_send(int sock_fd, void *buff, size_t bufflen)
-{
-	return usbip_net_xmit(sock_fd, buff, bufflen, 1);
+    return total;
 }
 
 int usbip_net_send_op_common(int sock_fd,

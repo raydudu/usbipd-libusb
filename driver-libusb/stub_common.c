@@ -319,43 +319,19 @@ void usbip_dump_header(struct usbip_header *pdu)
 }
 
 /* Send data over TCP/IP. */
-int usbip_sendmsg(struct usbip_device *ud, struct kvec *vec, size_t num)
-{
-	int i, result;
-	struct kvec *iov;
-	size_t total = 0;
-
-	for (i = 0; i < (int)num; i++) {
-		iov = vec+i;
-
-		if (iov->iov_len == 0)
-			continue;
-
-		if (usbip_dbg_flag_xmit) {
-			dbg("sending, idx %d size %zd",
-					i, iov->iov_len);
-			usbip_dump_buffer((char *)(iov->iov_base),
-					iov->iov_len);
-		}
-
-        result = send(ud->sock_fd, (char *)(iov->iov_base),
-                      iov->iov_len, 0);
-
-		if (result < 0) {
-			dbg("send err sock %d buf %p size %zu ",
-                     ud->sock_fd, iov->iov_base, iov->iov_len);
-			dbg("ret %d total %zd",
-				result, total);
-			return total;
-		}
-		total += result;
-	}
-	return total;
+int usbip_sendmsg(struct usbip_device *ud, struct iovec *vec, size_t num) {
+    if (usbip_dbg_flag_xmit) {
+        size_t i;
+        for (i = 0; i < num; i++) {
+            dbg("sending, idx %zd size %zd", i, vec[i].iov_len);
+            usbip_dump_buffer(vec[i].iov_base, vec[i].iov_len);
+        }
+    }
+    return writev(ud->sock_fd, vec, num);
 }
 
 /* Receive data over TCP/IP. */
-int usbip_recv(struct usbip_device *ud, void *buf, int size)
-{
+int usbip_recv(struct usbip_device *ud, void *buf, int size) {
 	int result;
 	int total = 0;
 

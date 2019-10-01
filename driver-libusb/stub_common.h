@@ -23,13 +23,8 @@
 
 #include <stdio.h>
 #include <stddef.h>
+#include <sys/uio.h>
 
-#include "usbip_common.h"
-
-struct kvec {
-	void *iov_base; /* and that should *never* hold a userland pointer */
-	size_t iov_len;
-};
 
 /* alternate of kthread_should_stop */
 #define stub_should_stop(sdev) ((sdev)->should_stop)
@@ -281,7 +276,7 @@ struct usbip_device {
 void usbip_dump_trx(struct libusb_transfer *trx);
 void usbip_dump_header(struct usbip_header *pdu);
 
-int usbip_sendmsg(struct usbip_device *ud, struct kvec *vec, size_t num);
+int usbip_sendmsg(struct usbip_device *ud, struct iovec *vec, size_t num);
 int usbip_recv(struct usbip_device *ud, void *buf, int size);
 
 struct stub_unlink;

@@ -17,17 +17,17 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <string.h>
 #include <sys/types.h>
 #include <arpa/inet.h>
 
 
-#include "usbip_host_driver.h"
-#include "usbip_common.h"
-#include "usbip_network.h"
-#include "usbipd_dev.h"
 #include "list.h"
-
+#include "usbip_host_driver.h"
+#include "usbip_network.h"
 #include <usbip_debug.h>
+
+#include "usbipd_requests.h"
 
 
 static int recv_request_attach(int sock_fd,
@@ -87,7 +87,7 @@ static int recv_request_attach(int sock_fd,
 	}
 
 	memcpy(&pdu_udev, &edev->udev, sizeof(pdu_udev));
-	usbip_net_pack_usb_device(1, &pdu_udev);
+    PACK_OP_IMPORT_REPLY(1, pdu_udev);
 
 	rc = usbip_net_send(sock_fd, &pdu_udev, sizeof(pdu_udev));
 	if (rc < 0) {
@@ -112,7 +112,8 @@ err_out:
 	return -1;
 }
 
-static int send_reply_devlist(int sock_fd)
+static int recv_request_devlist(int sock_fd,
+                                const char *host, const char *port)
 {
 	struct usbip_exported_devices edevs;
 	struct usbip_exported_device *edev;
@@ -149,7 +150,7 @@ static int send_reply_devlist(int sock_fd)
 		edev = list_entry(j, struct usbip_exported_device, node);
 		dump_usb_device(&edev->udev);
 		memcpy(&pdu_udev, &edev->udev, sizeof(pdu_udev));
-		usbip_net_pack_usb_device(1, &pdu_udev);
+        PACK_OP_IMPORT_REPLY(1, pdu_udev);
 
 		rc = usbip_net_send(sock_fd, &pdu_udev, sizeof(pdu_udev));
 		if (rc < 0) {
@@ -160,7 +161,6 @@ static int send_reply_devlist(int sock_fd)
 		for (i = 0; i < edev->udev.bNumInterfaces; i++) {
 			dump_usb_interface(&edev->uinf[i]);
 			memcpy(&pdu_uinf, &edev->uinf[i], sizeof(pdu_uinf));
-			usbip_net_pack_usb_interface(1, &pdu_uinf);
 
 			rc = usbip_net_send(sock_fd, &pdu_uinf,
                                 sizeof(pdu_uinf));
@@ -180,27 +180,8 @@ err_out:
 	return -1;
 }
 
-static int recv_request_devlist(int sock_fd,
-				const char *host, const char *port)
-{
-	int rc;
-
-	(void)host;
-	(void)port;
-
-	rc = send_reply_devlist(sock_fd);
-	if (rc < 0) {
-		dbg("send_reply_devlist failed");
-		return -1;
-	}
-
-	return 0;
-}
-
 struct usbipd_recv_pdu_op usbipd_recv_pdu_ops[] = {
 	{OP_REQ_DEVLIST, recv_request_devlist},
 	{OP_REQ_IMPORT,  recv_request_attach},
-	{OP_REQ_DEVINFO, NULL},
-	{OP_REQ_CRYPKEY, NULL},
 	{OP_UNSPEC, NULL}
 };

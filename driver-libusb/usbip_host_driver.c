@@ -16,6 +16,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <string.h>
 #include <sys/stat.h>
 
 #include "stub.h"
@@ -102,7 +103,9 @@ static void get_busid(libusb_device *dev, char *buf)
 {
 	snprintf(buf, SYSFS_BUS_ID_SIZE, "%d-%d",
 		libusb_get_bus_number(dev),
-		libusb_get_device_address(dev));
+		libusb_get_port_number(dev)
+		//libusb_get_device_address(dev)
+		);
 }
 
 static uint32_t get_device_speed(libusb_device *dev)
@@ -136,7 +139,7 @@ static void __fill_usb_device(struct usbip_usb_device *udev,
 	memset((char *)udev, 0, sizeof(struct usbip_usb_device));
 	strncpy(udev->busid, busid, SYSFS_BUS_ID_SIZE);
 	udev->busnum = libusb_get_bus_number(dev);
-	udev->devnum = libusb_get_device_address(dev);
+	udev->devnum = libusb_get_port_number(dev);
 	udev->speed = get_device_speed(dev);
 	udev->idVendor = desc->idVendor;
 	udev->idProduct = desc->idProduct;
@@ -412,18 +415,16 @@ static void stub_device_reset(struct usbip_device *ud)
 	struct stub_device *sdev = container_of(ud, struct stub_device, ud);
 	int ret;
 
-	dev_dbg(sdev->dev, "device reset");
-
 	/* try to reset the device */
 	ret = libusb_reset_device(sdev->dev_handle);
 
 	pthread_mutex_lock(&ud->lock);
 	if (ret) {
-		dev_err(sdev->dev, "device reset");
-		ud->status = SDEV_ST_ERROR;
-	} else {
-		dev_info(sdev->dev, "device reset");
-		ud->status = SDEV_ST_AVAILABLE;
+        dev_err(sdev->dev, "device reset: %d", ret);
+        ud->status = SDEV_ST_ERROR;
+    } else {
+        dev_info(sdev->dev, "device reset");
+        ud->status = SDEV_ST_AVAILABLE;
 	}
 	pthread_mutex_unlock(&ud->lock);
 }
@@ -453,7 +454,7 @@ static void clear_usbip_device(struct usbip_device *ud)
 static inline uint32_t get_devid(libusb_device *dev)
 {
 	uint32_t bus_number = libusb_get_bus_number(dev);
-	uint32_t dev_addr = libusb_get_device_address(dev);
+	uint32_t dev_addr = libusb_get_port_number(dev); //libusb_get_device_address(dev);
 
 	return (bus_number << 16) | dev_addr;
 }

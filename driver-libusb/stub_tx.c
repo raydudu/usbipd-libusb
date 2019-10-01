@@ -156,7 +156,6 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 {
 	struct list_head *pos, *tmp;
 	struct stub_priv *priv;
-	size_t txsize;
 	size_t total_size = 0;
 
 	while ((priv = dequeue_from_priv_tx(sdev)) != NULL) {
@@ -164,28 +163,16 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 		struct libusb_transfer *trx = priv->trx;
 		struct usbip_header pdu_header;
 		struct usbip_iso_packet_descriptor *iso_buffer = NULL;
-		struct kvec *iov = NULL;
+		struct iovec iov[2 + trx->num_iso_packets];
 		int iovnum = 0;
 		int offset = 0;
+		size_t txsize = 0;
 
-		txsize = 0;
 		memset(&pdu_header, 0, sizeof(pdu_header));
 
 		if (trx->type == LIBUSB_TRANSFER_TYPE_ISOCHRONOUS) {
 			fixup_actual_length(trx);
-			iovnum = 2 + trx->num_iso_packets;
-		} else {
-			iovnum = 2;
 		}
-
-		iov = (struct kvec *)calloc(1, iovnum * sizeof(struct kvec));
-
-		if (!iov) {
-			usbip_event_add(&sdev->ud, SDEV_EVENT_ERROR_MALLOC);
-			return -1;
-		}
-
-		iovnum = 0;
 
 		/* 1. setup usbip_header */
 		setup_ret_submit_pdu(&pdu_header, trx);
@@ -235,7 +222,6 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 				dev_err(sdev->dev,
 					"match iso packet sizes %zu",
 					txsize-sizeof(pdu_header));
-				free(iov);
 				usbip_event_add(&sdev->ud,
 						SDEV_EVENT_ERROR_TCP);
 				return -1;
@@ -250,7 +236,6 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 			if (!iso_buffer) {
 				usbip_event_add(&sdev->ud,
 						SDEV_EVENT_ERROR_MALLOC);
-				free(iov);
 				return -1;
 			}
 
@@ -265,13 +250,11 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 			dev_err(sdev->dev,
 				"sendmsg failed!, retval %zd for %zd",
 				sent, txsize);
-			free(iov);
 			free(iso_buffer);
 			usbip_event_add(&sdev->ud, SDEV_EVENT_ERROR_TCP);
 			return -1;
 		}
 
-		free(iov);
 		if (iso_buffer)
 			free(iso_buffer);
 
@@ -312,7 +295,7 @@ static int stub_send_ret_unlink(struct stub_device *sdev)
 {
 	struct list_head *pos, *tmp;
 	struct stub_unlink *unlink;
-	struct kvec iov[1];
+	struct iovec iov[1];
 	size_t txsize;
 	size_t total_size = 0;
 
@@ -365,6 +348,7 @@ static void poll_events_and_complete(struct stub_device *sdev)
 	struct timeval tv = {0, 0};
 	int ret;
 
+//	ret = libusb_handle_events(stub_libusb_ctx); //TODO redo, performance hit here
 	ret = libusb_handle_events_timeout(stub_libusb_ctx, &tv);
 	if (ret != 0 && ret != LIBUSB_ERROR_TIMEOUT)
 		usbip_event_add(&sdev->ud, SDEV_EVENT_ERROR_SUBMIT);

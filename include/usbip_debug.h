@@ -3,6 +3,8 @@
 
 #include <libusb.h>
 #include <stdio.h>
+#include <string.h>
+#include <usbip_network.h>
 
 extern int usbip_use_debug;
 extern unsigned long usbip_stub_debug_flags;
@@ -27,7 +29,7 @@ extern unsigned long usbip_stub_debug_flags;
 #endif /* !USBIP_OS_NO_NR_ARGS */
 
 #ifndef USBIP_OS_NO_NR_ARGS
-#define dev_pfmt(dev, lvl, fmt) dbg_fmt(lvl, ": %d-%d: " fmt), libusb_get_bus_number(dev), libusb_get_device_address(dev)
+#define dev_pfmt(dev, lvl, fmt) dbg_fmt(lvl, ": %d-%d: " fmt), libusb_get_bus_number(dev), libusb_get_port_number(dev)
 
 #define dev_dbg(dev, fmt, args...) \
 	fprintf(stdout, dev_pfmt(dev, "<D>", fmt), ##args)
@@ -67,7 +69,16 @@ enum {
 
 
 
-void usbip_dump_buffer(char *buff, int bufflen);
-//    struct libusb_device *dev = libusb_get_device(dev_handle);
+void dump_usb_interface(struct usbip_usb_interface *);
+void dump_usb_device(struct usbip_usb_device *);
+const char *usbip_speed_string(int num);
+
+void usbip_names_get_product(char *buff, size_t size, uint16_t vendor,
+                             uint16_t product);
+
+void usbip_names_get_class(char *buff, size_t size, uint8_t clazz,
+                           uint8_t subclass, uint8_t protocol);
+
+void usbip_dump_buffer(void *buf, int size);
 
 #endif //__USBIP_DEBUG_H__

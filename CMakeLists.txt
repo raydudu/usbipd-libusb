@@ -18,13 +18,11 @@ add_executable(${PROJECT_NAME}
         include/list.h
         src/names.c
         src/names.h
-        src/usbip_common.c
-        include/usbip_common.h
         src/usbip_network.c
-        src/usbip_network.h
-        src/usbipd_dev.c
+        include/usbip_network.h
+        src/usbipd_requests.c
         src/usbipd.c
-        src/usbipd_dev.h
+        src/usbipd_requests.h
         driver-libusb/stub.h
         driver-libusb/stub_common.c
         driver-libusb/stub_common.h

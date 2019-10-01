@@ -2,6 +2,7 @@
 #define __STUB_DRIVER_H__
 
 #include <list.h>
+#include <usbip_network.h>
 
 struct usbip_exported_devices {
     int ndevs;
@@ -26,5 +27,9 @@ struct usbip_exported_device *usbip_get_device(struct usbip_exported_devices *ed
 int usbip_export_device(struct usbip_exported_device *edev, int sock_fd);
 
 int usbip_try_transfer(struct usbip_exported_device *edev, int sock_fd);
+
+int usbip_driver_open(void);
+void usbip_driver_close(void);
+
 
 #endif //__STUB_DRIVER_H__

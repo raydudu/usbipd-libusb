@@ -27,7 +27,6 @@
 #define _NAMES_H
 
 #include <sys/types.h>
-#include "usbip_common.h"
 
 /* used by usbip_common.c */
 extern const char *names_vendor(u_int16_t vendorid);

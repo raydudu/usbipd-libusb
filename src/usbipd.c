@@ -45,12 +45,12 @@
 #include <pthread.h>
 #include <usbip_host_driver.h>
 #include <usbip_debug.h>
+#include <stdlib.h>
 
 #endif
 
-#include "usbip_common.h"
 #include "usbip_network.h"
-#include "usbipd_dev.h"
+#include "usbipd_requests.h"
 #include "list.h"
 #include "names.h"
 
@@ -486,7 +486,7 @@ int main(int argc, char *argv[]) {
 
     for (;;) {
         opt = getopt_long(argc, argv, "46Dd"
-                                      "f"
+                                      "f:"
                                       #ifndef USBIP_DAEMON_APP
                                       "e"
                                       #endif
@@ -509,7 +509,7 @@ int main(int argc, char *argv[]) {
                 usbip_use_debug = 1;
                 break;
             case 'f':
-                usbip_stub_debug_flags = strtoul(optarg, NULL, 16);
+                usbip_stub_debug_flags = strtoul(optarg, NULL, 0);
                 break;
             case 'h':
                 cmd = cmd_help;

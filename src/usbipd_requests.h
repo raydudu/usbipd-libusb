@@ -20,13 +20,10 @@
 #ifndef __USBIPD_H
 #define __USBIPD_H
 
-#include "usbip_common.h"
-
 
 struct usbipd_recv_pdu_op {
 	uint16_t code;
-	int (*proc)(int sock_fd,
-		    const char *host, const char *port);
+	int (*proc)(int sock_fd, const char *host, const char *port);
 };
 
 extern struct usbipd_recv_pdu_op usbipd_recv_pdu_ops[];
