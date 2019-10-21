@@ -23,7 +23,6 @@
 
 #include <stdio.h>
 #include <stddef.h>
-#include <sys/uio.h>
 
 
 /* alternate of kthread_should_stop */
@@ -276,9 +275,6 @@ struct usbip_device {
 void usbip_dump_trx(struct libusb_transfer *trx);
 void usbip_dump_header(struct usbip_header *pdu);
 
-int usbip_sendmsg(struct usbip_device *ud, struct iovec *vec, size_t num);
-int usbip_recv(struct usbip_device *ud, void *buf, int size);
-
 struct stub_unlink;
 
 void usbip_pack_ret_submit(struct usbip_header *pdu,
@@ -289,12 +285,6 @@ void usbip_header_correct_endian(struct usbip_header *pdu, int send);
 
 struct usbip_iso_packet_descriptor*
 usbip_alloc_iso_desc_pdu(struct libusb_transfer *trx, ssize_t *bufflen);
-
-/* some members of urb must be substituted before. */
-int usbip_recv_iso(struct usbip_device *ud, struct libusb_transfer *trx);
-void usbip_pad_iso(struct usbip_device *ud, struct libusb_transfer *trx);
-int usbip_recv_xbuff(struct usbip_device *ud, struct libusb_transfer *trx,
-			int offset);
 
 /* usbip_event.c */
 int usbip_start_eh(struct usbip_device *ud);

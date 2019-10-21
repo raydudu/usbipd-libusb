@@ -24,6 +24,7 @@
 #include <netinet/tcp.h>
 #include <string.h>
 #include <usbip_debug.h>
+#include <errno.h>
 
 #include "usbip_config.h"
 
@@ -35,7 +36,7 @@ char *usbip_port_string = "3240";
 void usbip_setup_port_number(char *arg)
 {
 	char *end;
-	unsigned long int port = strtoul(arg, &end, 10);
+	int port = (int)strtol(arg, &end, 10);
 
 	dbg("parsing port arg '%s'", arg);
 	if (end == arg) {
@@ -59,13 +60,74 @@ void usbip_setup_port_number(char *arg)
 	info("using port %d (\"%s\")", usbip_port, usbip_port_string);
 }
 
+/* Receive data over TCP/IP. *//*
+
+int usbip_recv(struct usbip_device *ud, void *buf, int size) {
+	int result;
+	int total = 0;
+
+	*/
+/* for blocks of if (usbip_dbg_flag_xmit) *//*
+
+	char *bp = (char *)buf;
+	int osize = size;
+
+	if (!ud->sock_fd || !buf || !size) {
+		err("invalid arg, sock %d buff %p size %d",
+               ud->sock_fd, buf, size);
+		errno = EINVAL;
+		return -1;
+	}
+
+	do {
+		usbip_dbg_xmit("receiving %d", size);
+        result = recv(ud->sock_fd, bp, size, 0);
+
+		if (result < 0) {
+		    if (errno == EAGAIN ||  errno == EINTR) {
+		        result = 0; // Try more
+		    } else {
+                err("receive error %d (errno %d)", result, errno);
+                goto out;
+            }
+		} else if (result == 0) {
+		    info("connection closed, releasing the device...");
+		    goto out;
+		}
+
+		size -= result;
+		bp += result;
+		total += result;
+	} while (size > 0);
+
+	if (usbip_dbg_flag_xmit) {
+		dbg("received, osize %d ret %d size %d total %d",
+			 osize, result, size, total);
+		usbip_dump_buffer((char *)buf, osize);
+	}
+
+	return total;
+
+out:
+	return result;
+}
+*/
 ssize_t usbip_net_recv(int sock_fd, void *buff, size_t bufflen) {
     size_t recvd  = 0;
 
     while(recvd != bufflen) {
         int ret = recv(sock_fd, (char *)buff + recvd, bufflen - recvd, MSG_WAITALL);
-        if (ret <= 0) {
+        if (ret < 0) {
+            if (errno == EAGAIN ||  errno == EINTR) {
+                ret = 0; // Try more
+            } else {
+                err("receive error %d (errno %d)", ret, errno);
+                break;
+            }
             return ret;
+        } else if (ret == 0) {
+            info("connection closed, releasing the device...");
+            return 0;
         }
 
         recvd += ret;
@@ -92,6 +154,17 @@ ssize_t usbip_net_send(int sock_fd, void *buff, size_t bufflen) {
     return total;
 }
 
+/* Send data over TCP/IP. */
+int usbip_net_sendvec(int fd, struct iovec *vec, size_t num) {
+    if (usbip_dbg_flag_xmit) {
+        size_t i;
+        for (i = 0; i < num; i++) {
+            dbg("sending, idx %zd size %zd", i, vec[i].iov_len);
+            usbip_dump_buffer(vec[i].iov_base, vec[i].iov_len);
+        }
+    }
+    return writev(fd, vec, num);
+}
 int usbip_net_send_op_common(int sock_fd,
 			     uint32_t code, uint32_t status)
 {

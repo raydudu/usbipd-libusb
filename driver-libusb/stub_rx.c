@@ -452,12 +452,17 @@ static void stub_recv_cmd_submit(struct stub_device *sdev,
 	trx->callback = stub_complete;
 
 	if (pdu->base.direction != USBIP_DIR_IN) {
-		if (usbip_recv_xbuff(ud, trx, offset) < 0)
-			return;
+        ret = usbip_net_recv(ud->sock_fd, trx->buffer + offset, trx->length - offset);
+        if (ret != trx->length - offset) {
+            dev_err(sdev->dev, "recv xbuf, %d", ret);
+            usbip_event_add(ud, SDEV_EVENT_ERROR_TCP);
+            return;
+        }
+        if (usbip_dbg_flag_xmit) {
+            dbg("recv xbuf ret %d size %d:", ret, trx->length - offset);
+            usbip_dump_buffer((char *)trx->buffer, trx->length - offset);
+        }
 	}
-
-	if (usbip_recv_iso(ud, trx) < 0)
-		return;
 
 	/* no need to submit an intercepted request, but harmless? */
 	ret = tweak_special_requests(trx);
@@ -505,7 +510,8 @@ again:
 	memset(&pdu, 0, sizeof(pdu));
 
 	/* receive a pdu header */
-	ret = usbip_recv(ud, &pdu, sizeof(pdu));
+	//ret = usbip_recv(ud, &pdu, sizeof(pdu));
+	ret = usbip_net_recv(ud->sock_fd, &pdu, sizeof(pdu));
 
 	if (ret != sizeof(pdu)) {
 	    if (ret != 0) {

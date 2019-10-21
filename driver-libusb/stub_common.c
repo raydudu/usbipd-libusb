@@ -25,28 +25,22 @@
 
 #include <usbip_debug.h>
 
-static const char *s_trx_type_cont = "cont";
-static const char *s_trx_type_isoc = "isoc";
-static const char *s_trx_type_bulk = "bulk";
-static const char *s_trx_type_intr = "intr";
-static const char *s_trx_type_blks = "blks";
-static const char *s_trx_type_unknown = "????";
-
 static const char *get_trx_type_str(uint8_t type)
 {
 	switch (type) {
 	case LIBUSB_TRANSFER_TYPE_CONTROL:
-		return s_trx_type_cont;
+		return "cont";
 	case LIBUSB_TRANSFER_TYPE_ISOCHRONOUS:
-		return s_trx_type_isoc;
+		return "isoc";
 	case LIBUSB_TRANSFER_TYPE_BULK:
-		return s_trx_type_bulk;
+		return "bulk";
 	case LIBUSB_TRANSFER_TYPE_INTERRUPT:
-		return s_trx_type_intr;
+		return "intr";
 	case LIBUSB_TRANSFER_TYPE_BULK_STREAM:
-		return s_trx_type_blks;
-	}
-	return s_trx_type_unknown;
+		return "blks";
+    default:
+        return "????";
+    }
 }
 
 static void get_endpoint_descs(struct libusb_config_descriptor *config,
@@ -140,69 +134,52 @@ static void usbip_dump_usb_device(struct libusb_device *dev)
 		libusb_free_config_descriptor(config);
 }
 
-static const char *s_recipient_device    = "DEVC";
-static const char *s_recipient_interface = "INTF";
-static const char *s_recipient_endpoint  = "ENDP";
-static const char *s_recipient_other = "OTHR";
-static const char *s_recipient_unknown   = "????";
-
 static const char *get_request_recipient_str(uint8_t rt)
 {
 	uint8_t recip = get_recipient(rt);
 
 	switch (recip) {
 	case LIBUSB_RECIPIENT_DEVICE:
-		return s_recipient_device;
+		return "DEVC";
 	case LIBUSB_RECIPIENT_INTERFACE:
-		return s_recipient_interface;
+		return "INTF";
 	case LIBUSB_RECIPIENT_ENDPOINT:
-		return s_recipient_endpoint;
+		return "ENDP";
 	case LIBUSB_RECIPIENT_OTHER:
-		return s_recipient_other;
-	}
-	return s_recipient_unknown;
+		return "OTHR";
+    default:
+        return "????";
+    }
 }
-
-static const char *s_request_get_status     = "GET_STATUS";
-static const char *s_request_clear_feature  = "CLEAR_FEAT";
-static const char *s_request_set_feature    = "SET_FEAT  ";
-static const char *s_request_set_address    = "SET_ADDRRS";
-static const char *s_request_get_descriptor = "GET_DESCRI";
-static const char *s_request_set_descriptor = "SET_DESCRI";
-static const char *s_request_get_config     = "GET_CONFIG";
-static const char *s_request_set_config     = "SET_CONFIG";
-static const char *s_request_get_interface  = "GET_INTERF";
-static const char *s_request_set_interface  = "SET_INTERF";
-static const char *s_request_sync_frame     = "SYNC_FRAME";
-static const char *s_request_unknown        = "????      ";
 
 static const char *get_request_str(uint8_t req)
 {
 	switch (req) {
 	case LIBUSB_REQUEST_GET_STATUS:
-		return s_request_get_status;
+		return "GET_STATUS";
 	case LIBUSB_REQUEST_CLEAR_FEATURE:
-		return s_request_clear_feature;
+		return "CLEAR_FEAT";
 	case LIBUSB_REQUEST_SET_FEATURE:
-		return s_request_set_feature;
+		return "SET_FEAT  ";
 	case LIBUSB_REQUEST_SET_ADDRESS:
-		return s_request_set_address;
+		return "SET_ADDRRS";
 	case LIBUSB_REQUEST_GET_DESCRIPTOR:
-		return s_request_get_descriptor;
+		return "GET_DESCRI";
 	case LIBUSB_REQUEST_SET_DESCRIPTOR:
-		return s_request_set_descriptor;
+		return "SET_DESCRI";
 	case LIBUSB_REQUEST_GET_CONFIGURATION:
-		return s_request_get_config;
+		return "GET_CONFIG";
 	case LIBUSB_REQUEST_SET_CONFIGURATION:
-		return s_request_set_config;
+		return "SET_CONFIG";
 	case LIBUSB_REQUEST_GET_INTERFACE:
-		return s_request_get_interface;
+		return "GET_INTERF";
 	case LIBUSB_REQUEST_SET_INTERFACE:
-		return s_request_set_interface;
+		return "SET_INTERF";
 	case LIBUSB_REQUEST_SYNCH_FRAME:
-		return s_request_sync_frame;
+		return "SYNC_FRAME";
+    default:
+	    return "????      ";
 	}
-	return s_request_unknown;
 }
 
 static void usbip_dump_usb_ctrlrequest(struct libusb_device *dev,
@@ -318,67 +295,6 @@ void usbip_dump_header(struct usbip_header *pdu)
 	}
 }
 
-/* Send data over TCP/IP. */
-int usbip_sendmsg(struct usbip_device *ud, struct iovec *vec, size_t num) {
-    if (usbip_dbg_flag_xmit) {
-        size_t i;
-        for (i = 0; i < num; i++) {
-            dbg("sending, idx %zd size %zd", i, vec[i].iov_len);
-            usbip_dump_buffer(vec[i].iov_base, vec[i].iov_len);
-        }
-    }
-    return writev(ud->sock_fd, vec, num);
-}
-
-/* Receive data over TCP/IP. */
-int usbip_recv(struct usbip_device *ud, void *buf, int size) {
-	int result;
-	int total = 0;
-
-	/* for blocks of if (usbip_dbg_flag_xmit) */
-	char *bp = (char *)buf;
-	int osize = size;
-
-	if (!ud->sock_fd || !buf || !size) {
-		err("invalid arg, sock %d buff %p size %d",
-               ud->sock_fd, buf, size);
-		errno = EINVAL;
-		return -1;
-	}
-
-	do {
-		usbip_dbg_xmit("receiving %d", size);
-        result = recv(ud->sock_fd, bp, size, 0);
-
-		if (result < 0) {
-		    if (errno == EAGAIN ||  errno == EINTR) {
-		        result = 0; // Try more
-		    } else {
-                err("receive error %d (errno %d)", result, errno);
-                goto out;
-            }
-		} else if (result == 0) {
-		    info("connection closed, releasing the device...");
-		    goto out;
-		}
-
-		size -= result;
-		bp += result;
-		total += result;
-	} while (size > 0);
-
-	if (usbip_dbg_flag_xmit) {
-		dbg("received, osize %d ret %d size %d total %d",
-			 osize, result, size, total);
-		usbip_dump_buffer((char *)buf, osize);
-	}
-
-	return total;
-
-out:
-	return result;
-}
-
 static int trxstat2error(enum libusb_transfer_status trxstat)
 {
 	switch (trxstat) {
@@ -386,15 +302,18 @@ static int trxstat2error(enum libusb_transfer_status trxstat)
 		return 0;
 	case LIBUSB_TRANSFER_CANCELLED:
 		return -ECONNRESET;
-	case LIBUSB_TRANSFER_ERROR:
 	case LIBUSB_TRANSFER_STALL:
+        return -EPIPE;
 	case LIBUSB_TRANSFER_TIMED_OUT:
+        return -ETIMEDOUT;
 	case LIBUSB_TRANSFER_OVERFLOW:
-		return -EPIPE;
+		return -EOVERFLOW;
 	case LIBUSB_TRANSFER_NO_DEVICE:
 		return -ESHUTDOWN;
+    case LIBUSB_TRANSFER_ERROR:
+    default:
+        return -ENOENT;
 	}
-	return -ENOENT;
 }
 
 static enum libusb_transfer_status error2trxstat(int e)
@@ -414,8 +333,9 @@ static enum libusb_transfer_status error2trxstat(int e)
 		return LIBUSB_TRANSFER_NO_DEVICE;
 	case -EOVERFLOW:
 		return LIBUSB_TRANSFER_OVERFLOW;
-	}
-	return LIBUSB_TRANSFER_ERROR;
+    default:
+        return LIBUSB_TRANSFER_ERROR;
+    }
 }
 
 void usbip_pack_ret_submit(struct usbip_header *pdu,
@@ -541,7 +461,6 @@ void usbip_header_correct_endian(struct usbip_header *pdu, int send)
 	case USBIP_NOP:
 		break;
 	default:
-		/* NOT REACHED */
 		err("unknown command");
 		break;
 	}
@@ -603,80 +522,4 @@ usbip_alloc_iso_desc_pdu(struct libusb_transfer *trx, ssize_t *bufflen)
 	*bufflen = size;
 
 	return iso;
-}
-
-/* some members of urb must be substituted before. */
-int usbip_recv_iso(struct usbip_device *ud, struct libusb_transfer *trx)
-{
-	void *buff;
-	struct usbip_iso_packet_descriptor *iso;
-	int np = trx->num_iso_packets;
-	int size = np * sizeof(*iso);
-	int i;
-	int ret;
-	int total_length = 0;
-
-	/* my Bluetooth dongle gets ISO URBs which are np = 0 */
-	if (np == 0)
-		return 0;
-
-	buff = malloc(size);
-	if (!buff) {
-		errno = ENOMEM;
-		return -1;
-	}
-
-	ret = usbip_recv(ud, buff, size);
-	if (ret != size) {
-		dev_err(libusb_get_device(trx->dev_handle),
-			"recv iso_frame_descriptor, %d", ret);
-		free(buff);
-		usbip_event_add(ud, SDEV_EVENT_ERROR_TCP);
-		errno = EPIPE;
-		return -1;
-	}
-
-	iso = (struct usbip_iso_packet_descriptor *) buff;
-	for (i = 0; i < np; i++) {
-		usbip_iso_packet_correct_endian(&iso[i], 0);
-		usbip_pack_iso(&iso[i], &trx->iso_packet_desc[i], 0, 0);
-		total_length += trx->iso_packet_desc[i].actual_length;
-	}
-
-	free(buff);
-
-	if (total_length != trx->actual_length) {
-		dev_err(libusb_get_device(trx->dev_handle), "total length of iso packets %d not equal to actual ", total_length);
-		dev_err(libusb_get_device(trx->dev_handle), "length of buffer %d", trx->actual_length);
-		usbip_event_add(ud, SDEV_EVENT_ERROR_TCP);
-		errno = EPIPE;
-		return -1;
-	}
-
-	return ret;
-}
-
-/* some members of urb must be substituted before. */
-int usbip_recv_xbuff(struct usbip_device *ud, struct libusb_transfer *trx,
-		     int offset)
-{
-	int ret;
-	int size;
-
-	size = trx->length - offset;
-
-	/* no need to recv xbuff */
-	if (!(size > 0))
-		return 0;
-
-	/*
-	 * Take offset for CONTROL setup
-	 */
-	ret = usbip_recv(ud, trx->buffer + offset, size);
-	if (ret != size) {
-		dev_err(libusb_get_device(trx->dev_handle), "recv xbuf, %d", ret);
-		usbip_event_add(ud, SDEV_EVENT_ERROR_TCP);
-	}
-
-	return ret;
 }

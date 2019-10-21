@@ -8,7 +8,7 @@
 #include "usbip_config.h"
 
 #include <sys/types.h>
-
+#include <sys/uio.h>
 #include <stdint.h>
 
 extern int usbip_port;
@@ -136,6 +136,10 @@ struct op_devlist_reply_extra {
 
 ssize_t usbip_net_recv(int sock_fd, void *buff, size_t bufflen);
 ssize_t usbip_net_send(int sock_fd, void *buff, size_t bufflen);
+int usbip_net_sendvec(int fd, struct iovec *vec, size_t num);
+//int usbip_recv(struct usbip_device *ud, void *buf, int size);
+
+
 int usbip_net_send_op_common(int sock_fd, uint32_t code, uint32_t status);
 int usbip_net_recv_op_common(int sock_fd, uint16_t *code);
 int usbip_net_set_reuseaddr(int sockfd);
@@ -143,5 +147,7 @@ int usbip_net_set_nodelay(int sockfd);
 int usbip_net_set_keepalive(int sockfd);
 int usbip_net_set_v6only(int sockfd);
 const char *usbip_net_gai_strerror(int errcode);
+
+
 
 #endif /* __USBIP_NETWORK_H */

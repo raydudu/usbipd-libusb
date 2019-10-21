@@ -245,7 +245,7 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 			iovnum++;
 		}
 
-		sent = usbip_sendmsg(&sdev->ud, iov,  iovnum);
+		sent = usbip_net_sendvec(sdev->ud.sock_fd, iov, iovnum);
 		if (sent != txsize) {
 			dev_err(sdev->dev,
 				"sendmsg failed!, retval %zd for %zd",
@@ -317,7 +317,7 @@ static int stub_send_ret_unlink(struct stub_device *sdev)
 		iov[0].iov_len  = sizeof(pdu_header);
 		txsize += sizeof(pdu_header);
 
-		sent = usbip_sendmsg(&sdev->ud, iov, 1);
+		sent = usbip_net_sendvec(sdev->ud.sock_fd, iov, 1);
 		if (sent != txsize) {
 			dev_err(sdev->dev,
 				"sendmsg failed!, retval %zd for %zd",
