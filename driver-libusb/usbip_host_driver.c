@@ -152,38 +152,6 @@ static void __fill_usb_device(struct usbip_usb_device *udev,
 	udev->bNumInterfaces = config->bNumInterfaces;
 }
 
-#define FILL_SKIPPED 1
-
-static int fill_usb_device(struct usbip_usb_device *udev, libusb_device *dev)
-{
-	struct libusb_device_descriptor desc;
-	struct libusb_config_descriptor *config;
-	char busid[SYSFS_BUS_ID_SIZE];
-
-	if (libusb_get_device_descriptor(dev, &desc)) {
-		get_busid(dev, busid);
-		err("get device desc %s", busid);
-		return -1;
-	}
-
-	if (desc.bDeviceClass == USB_CLASS_HUB) {
-		get_busid(dev, busid);
-		dbg("skip hub to fill udev %s", busid);
-		return FILL_SKIPPED;
-	}
-
-	if (libusb_get_active_config_descriptor(dev, &config)) {
-		get_busid(dev, busid);
-		err("get device config %s", busid);
-		return -1;
-	}
-
-	__fill_usb_device(udev, dev, &desc, config);
-
-	libusb_free_config_descriptor(config);
-	return 0;
-}
-
 static void fill_usb_interfaces(struct usbip_usb_interface *uinf,
 				struct libusb_config_descriptor *config)
 {
@@ -349,7 +317,7 @@ int usbip_refresh_device_list(struct usbip_exported_devices *edevs) {
 			err("get device desc %s", busid);
 			goto err_free_list;
 		}
-		if (desc.bDeviceClass == USB_CLASS_HUB) {
+		if (desc.bDeviceClass == LIBUSB_CLASS_HUB) {
 			dbg("skip hub to fill udev %s", busid);
 			continue;
 		}
@@ -400,50 +368,10 @@ struct usbip_exported_device *usbip_get_device(struct usbip_exported_devices *ed
 	return NULL;
 }
 
-static void stub_shutdown(struct usbip_device *ud)
-{
-	struct stub_device *sdev = container_of(ud, struct stub_device, ud);
-
-	sdev->should_stop = 1;
-	usbip_stop_eh(&sdev->ud);
-	pthread_mutex_unlock(&sdev->tx_waitq);
-	/* rx will exit by disconnect */
-}
-
-static void stub_device_reset(struct usbip_device *ud)
-{
-	struct stub_device *sdev = container_of(ud, struct stub_device, ud);
-	int ret;
-
-	/* try to reset the device */
-	ret = libusb_reset_device(sdev->dev_handle);
-
-	pthread_mutex_lock(&ud->lock);
-	if (ret) {
-        dev_err(sdev->dev, "device reset: %d", ret);
-        ud->status = SDEV_ST_ERROR;
-    } else {
-        dev_info(sdev->dev, "device reset");
-        ud->status = SDEV_ST_AVAILABLE;
-	}
-	pthread_mutex_unlock(&ud->lock);
-}
-
-static void stub_device_unusable(struct usbip_device *ud)
-{
-	pthread_mutex_lock(&ud->lock);
-	ud->status = SDEV_ST_ERROR;
-	pthread_mutex_unlock(&ud->lock);
-}
-
 static void init_usbip_device(struct usbip_device *ud)
 {
 	ud->status = SDEV_ST_AVAILABLE;
 	pthread_mutex_init(&ud->lock, NULL);
-
-	ud->eh_ops.shutdown = stub_shutdown;
-	ud->eh_ops.reset    = stub_device_reset;
-	ud->eh_ops.unusable = stub_device_unusable;
 }
 
 static void clear_usbip_device(struct usbip_device *ud)
@@ -584,6 +512,7 @@ static int claim_interfaces(libusb_device_handle *dev_handle, int num_ifs,
 	}
 	return 0;
 }
+
 int usbip_export_device(struct usbip_exported_device *edev, int sock_fd) {
 	struct stub_device *sdev;
 	struct stub_edev_data *edev_data = edev2edev_data(edev);
@@ -623,10 +552,20 @@ err_out:
 
 void stub_unexport_device(struct stub_device *sdev)
 {
+    int ret = libusb_reset_device(sdev->dev_handle);
+    if (ret) {
+        dev_err(sdev->dev, "device reset: %d", ret);
+    } else {
+        dev_info(sdev->dev, "device reset");
+    }
+
 	release_interfaces(sdev->dev_handle, sdev->udev.bNumInterfaces,
 			   sdev->ifs, 0);
 	libusb_close(sdev->dev_handle);
 	sdev->dev_handle = NULL;
+	pthread_mutex_lock(&sdev->ud.lock);
+	sdev->ud.status = SDEV_ST_AVAILABLE;
+	pthread_mutex_unlock(&sdev->ud.lock);
 }
 
 static int stub_start(struct stub_device *sdev)
@@ -634,10 +573,6 @@ static int stub_start(struct stub_device *sdev)
 	if (sdev == NULL)
 		return 0;
 
-	if (usbip_start_eh(&sdev->ud)) {
-		err("start event handler");
-		return -1;
-	}
 	if (pthread_create(&sdev->rx, NULL, stub_rx_loop, sdev)) {
 		err("start recv thread");
 		return -1;
@@ -653,16 +588,6 @@ static int stub_start(struct stub_device *sdev)
 	return 0;
 }
 
-static void stub_join(struct stub_device *sdev)
-{
-	if (sdev == NULL)
-		return;
-	dbg("waiting on libusb transmission threads");
-	usbip_join_eh(&sdev->ud);
-	pthread_join(sdev->tx, NULL);
-	pthread_join(sdev->rx, NULL);
-}
-
 int usbip_try_transfer(struct usbip_exported_device *edev, int sock_fd) {
 	struct stub_device *sdev = edev2sdev(edev);
 
@@ -670,7 +595,10 @@ int usbip_try_transfer(struct usbip_exported_device *edev, int sock_fd) {
 		err("start driver-libusb");
 		return -1;
 	}
-	stub_join(sdev);
+
+    pthread_join(sdev->tx, NULL);
+    pthread_join(sdev->rx, NULL);
+
 	stub_device_cleanup_transfers(sdev);
 	stub_device_cleanup_unlinks(sdev);
 	stub_unexport_device(sdev);

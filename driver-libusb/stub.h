@@ -96,8 +96,7 @@ struct stub_edev_data {
 void *stub_rx_loop(void *data);
 
 /* stub_tx.c */
-void stub_enqueue_ret_unlink(struct stub_device *sdev, uint32_t seqnum,
-			     enum libusb_transfer_status status);
+int stub_enqueue_ret_unlink(struct stub_device *sdev, uint32_t seqnum, enum libusb_transfer_status status);
 void LIBUSB_CALL stub_complete(struct libusb_transfer *trx);
 void *stub_tx_loop(void *data);
 

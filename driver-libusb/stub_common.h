@@ -55,7 +55,6 @@
 					/* needed */
 #define URB_FREE_BUFFER		0x0100
 
-#define USB_CLASS_HUB		9
 
 static inline uint8_t get_request_dir(uint8_t rt)
 {
@@ -71,22 +70,6 @@ static inline uint8_t get_recipient(uint8_t rt)
 {
 	return (rt & USB_RECIP_MASK);
 }
-
-#define USB_ENDPOINT_XFERTYPE_MASK	0x03    /* in bmAttributes */
-#define USB_ENDPOINT_XFER_CONTROL	0
-#define USB_ENDPOINT_XFER_ISOC		1
-#define USB_ENDPOINT_XFER_BULK		2
-#define USB_ENDPOINT_XFER_INT		3
-#define USB_ENDPOINT_MAX_ADJUSTABLE	0x80
-
-/*
- * See also from include/uapi/linux/usb/ch11.h
- */
-
-#define USB_RT_HUB \
-	(LIBUSB_REQUEST_TYPE_CLASS | LIBUSB_RECIPIENT_DEVICE)
-#define USB_RT_PORT \
-	(LIBUSB_REQUEST_TYPE_CLASS | LIBUSB_RECIPIENT_OTHER)
 
 /*
  * Port feature numbers
@@ -238,18 +221,6 @@ struct usbip_iso_packet_descriptor {
 	uint32_t status;
 } __attribute__((packed));
 
-/* event handler */
-#define USBIP_EH_SHUTDOWN	(1 << 0)
-#define USBIP_EH_BYE		(1 << 1)
-#define USBIP_EH_RESET		(1 << 2)
-#define USBIP_EH_UNUSABLE	(1 << 3)
-
-#define SDEV_EVENT_REMOVED   (USBIP_EH_SHUTDOWN | USBIP_EH_RESET | USBIP_EH_BYE)
-#define	SDEV_EVENT_DOWN		(USBIP_EH_SHUTDOWN | USBIP_EH_RESET)
-#define	SDEV_EVENT_ERROR_TCP	(USBIP_EH_SHUTDOWN | USBIP_EH_RESET)
-#define	SDEV_EVENT_ERROR_SUBMIT	(USBIP_EH_SHUTDOWN | USBIP_EH_RESET)
-#define	SDEV_EVENT_ERROR_MALLOC	(USBIP_EH_SHUTDOWN | USBIP_EH_UNUSABLE)
-
 /* a common structure for stub_device and vhci_device */
 struct usbip_device {
 	enum usbip_device_status status;
@@ -258,17 +229,6 @@ struct usbip_device {
 	pthread_mutex_t lock;
 
 	int sock_fd;
-
-	unsigned long event;
-	pthread_t eh;
-	pthread_mutex_t eh_waitq;
-	int eh_should_stop;
-
-	struct eh_ops {
-		void (*shutdown)(struct usbip_device *);
-		void (*reset)(struct usbip_device *);
-		void (*unusable)(struct usbip_device *);
-	} eh_ops;
 };
 
 /* usbip_common.c */
@@ -285,12 +245,5 @@ void usbip_header_correct_endian(struct usbip_header *pdu, int send);
 
 struct usbip_iso_packet_descriptor*
 usbip_alloc_iso_desc_pdu(struct libusb_transfer *trx, ssize_t *bufflen);
-
-/* usbip_event.c */
-int usbip_start_eh(struct usbip_device *ud);
-void usbip_stop_eh(struct usbip_device *ud);
-void usbip_join_eh(struct usbip_device *ud);
-void usbip_event_add(struct usbip_device *ud, unsigned long event);
-int usbip_event_happened(struct usbip_device *ud);
 
 #endif /* __STUB_COMMON_H */

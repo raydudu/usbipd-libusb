@@ -18,22 +18,20 @@
 
 #include "stub.h"
 #include <usbip_debug.h>
+//TODO split the file up and remove
 
-static struct stub_priv *stub_priv_pop_from_listhead(struct list_head *listhead)
-{
+static struct stub_priv *stub_priv_pop_from_listhead(struct list_head *listhead) {
 	struct list_head *pos, *tmp;
-	struct stub_priv *priv;
 
 	list_for_each_safe(pos, tmp, listhead) {
-		priv = list_entry(pos, struct stub_priv, list);
+        struct stub_priv *priv = list_entry(pos, struct stub_priv, list);
 		warn("Found pending trx %p.", priv->trx);
 	}
 
 	return NULL;
 }
 
-static struct stub_priv *stub_priv_pop(struct stub_device *sdev)
-{
+static struct stub_priv *stub_priv_pop(struct stub_device *sdev) {
 	struct stub_priv *priv;
 
 	pthread_mutex_lock(&sdev->priv_lock);

@@ -27,7 +27,6 @@ add_executable(${PROJECT_NAME}
         driver-libusb/stub_common.c
         driver-libusb/stub_common.h
         driver-libusb/usbip_host_driver.c
-        driver-libusb/stub_event.c
         driver-libusb/stub_main.c
         driver-libusb/stub_rx.c
         driver-libusb/stub_tx.c include/usbip_host_driver.h include/usbip_debug.h src/usbip_debug.c)

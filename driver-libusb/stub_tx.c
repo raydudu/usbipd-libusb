@@ -19,21 +19,21 @@ static void stub_free_priv_and_trx(struct stub_priv *priv)
 }
 
 /* be in spin_lock_irqsave(&sdev->priv_lock, flags) */
-void stub_enqueue_ret_unlink(struct stub_device *sdev, uint32_t seqnum,
+int stub_enqueue_ret_unlink(struct stub_device *sdev, uint32_t seqnum,
 			     enum libusb_transfer_status status)
 {
 	struct stub_unlink *unlink;
 
 	unlink = (struct stub_unlink *)calloc(1, sizeof(struct stub_unlink));
 	if (!unlink) {
-		usbip_event_add(&sdev->ud, SDEV_EVENT_ERROR_MALLOC);
-		return;
+        return  -1;
 	}
 
 	unlink->seqnum = seqnum;
 	unlink->status = status;
 
 	list_add(&unlink->list, sdev->unlink_tx.prev);
+    return 0;
 }
 
 /**
@@ -222,8 +222,6 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 				dev_err(sdev->dev,
 					"match iso packet sizes %zu",
 					txsize-sizeof(pdu_header));
-				usbip_event_add(&sdev->ud,
-						SDEV_EVENT_ERROR_TCP);
 				return -1;
 			}
 		}
@@ -234,8 +232,6 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 
 			iso_buffer = usbip_alloc_iso_desc_pdu(trx, &len);
 			if (!iso_buffer) {
-				usbip_event_add(&sdev->ud,
-						SDEV_EVENT_ERROR_MALLOC);
 				return -1;
 			}
 
@@ -251,7 +247,6 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 				"sendmsg failed!, retval %zd for %zd",
 				sent, txsize);
 			free(iso_buffer);
-			usbip_event_add(&sdev->ud, SDEV_EVENT_ERROR_TCP);
 			return -1;
 		}
 
@@ -322,7 +317,6 @@ static int stub_send_ret_unlink(struct stub_device *sdev)
 			dev_err(sdev->dev,
 				"sendmsg failed!, retval %zd for %zd",
 				sent, txsize);
-			usbip_event_add(&sdev->ud, SDEV_EVENT_ERROR_TCP);
 			return -1;
 		}
 
@@ -343,15 +337,17 @@ static int stub_send_ret_unlink(struct stub_device *sdev)
 	return total_size;
 }
 
-static void poll_events_and_complete(struct stub_device *sdev)
+static int poll_events_and_complete(struct stub_device *sdev)
 {
 	struct timeval tv = {0, 0};
 	int ret;
 
-//	ret = libusb_handle_events(stub_libusb_ctx); //TODO redo, performance hit here
 	ret = libusb_handle_events_timeout(stub_libusb_ctx, &tv);
-	if (ret != 0 && ret != LIBUSB_ERROR_TIMEOUT)
-		usbip_event_add(&sdev->ud, SDEV_EVENT_ERROR_SUBMIT);
+	if (ret != 0 && ret != LIBUSB_ERROR_TIMEOUT) {
+	    dev_err(sdev->dev, "libusb handle events: %d", ret);
+        return -1;
+	}
+    return 0;
 }
 
 void *stub_tx_loop(void *data)
@@ -360,10 +356,9 @@ void *stub_tx_loop(void *data)
 	int ret_submit, ret_unlink;
 
 	while (!stub_should_stop(sdev)) {
-		poll_events_and_complete(sdev);
-
-		if (usbip_event_happened(&sdev->ud))
-			break;
+		if (poll_events_and_complete(sdev)) { // TODO move to separate thread?
+            break;
+		}
 
 		/*
 		 * send_ret_submit comes earlier than send_ret_unlink.  stub_rx
@@ -379,6 +374,7 @@ void *stub_tx_loop(void *data)
 		 * getting the status of the given-backed URB which has the
 		 * status of usb_submit_urb().
 		 */
+
 		ret_submit = stub_send_ret_submit(sdev);
 		if (ret_submit < 0)
 			break;
@@ -386,8 +382,11 @@ void *stub_tx_loop(void *data)
 		ret_unlink = stub_send_ret_unlink(sdev);
 		if (ret_unlink < 0)
 			break;
-
 	}
+
+	sdev->should_stop = 1;
+
 	usbip_dbg_stub_tx("end of stub_tx_loop");
+
 	return NULL;
 }

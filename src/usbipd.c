@@ -56,7 +56,7 @@
 
 #define MAXSOCKFD 20
 
-#define MAIN_LOOP_TIMEOUT 10
+//#define MAIN_LOOP_TIMEOUT 10
 
 static const char usbipd_help_string[] =
         "usage: " PACKAGE " [options]\n"
@@ -419,15 +419,16 @@ static int do_standalone_mode(int daemonize, int ipv4, int ipv6) {
     terminate = 0;
     while (!terminate) {
         int r;
-
+        //TODO reimplement on ppoll/pselect, remove ugliness
         pthread_sigmask(SIG_SETMASK, &sigmask, &origmask);
-        r = poll(fds, nsockfd, MAIN_LOOP_TIMEOUT * 1000);
+        r = poll(fds, nsockfd, -1 /*MAIN_LOOP_TIMEOUT * 1000*/);
         pthread_sigmask(SIG_SETMASK, &origmask, NULL);
 
         if (r < 0) {
             dbg("%s", strerror(errno));
             terminate = 1;
-        } else if (r) {
+        } else
+        //if (r) {
             for (i = 0; i < nsockfd; i++) {
                 if (fds[i].revents & POLLIN) {
                     dbg("read event on fd[%d]=%d",
@@ -435,9 +436,9 @@ static int do_standalone_mode(int daemonize, int ipv4, int ipv6) {
                     process_request(sockfdlist[i]);
                 }
             }
-        } else {
-            dbg("heartbeat timeout on ppoll()");
-        }
+        //} else {
+          //  dbg("heartbeat timeout on ppoll()");
+        //}
     }
 
     info("shutting down %s", PACKAGE);

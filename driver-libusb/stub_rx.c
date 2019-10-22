@@ -279,7 +279,9 @@ static int stub_recv_cmd_unlink(struct stub_device *sdev,
 	 * CMD_RET pdu. In this case, usb_unlink_urb() is not needed. We only
 	 * return the completeness of this unlink request to vhci_hcd.
 	 */
-	stub_enqueue_ret_unlink(sdev, pdu->base.seqnum, 0);
+	if (stub_enqueue_ret_unlink(sdev, pdu->base.seqnum, 0)) {
+        return -1;
+	}
 
 	pthread_mutex_unlock(&sdev->priv_lock);
 
@@ -322,7 +324,6 @@ static struct stub_priv *stub_priv_alloc(struct stub_device *sdev,
 	if (!priv) {
 		dev_err(sdev->dev, "alloc stub_priv");
 		pthread_mutex_unlock(&sdev->priv_lock);
-		usbip_event_add(ud, SDEV_EVENT_ERROR_MALLOC);
 		return NULL;
 	}
 
@@ -381,7 +382,7 @@ static void masking_bogus_flags(struct libusb_transfer *trx)
 	trx->flags &= allowed;
 }
 
-static void stub_recv_cmd_submit(struct stub_device *sdev,
+static int stub_recv_cmd_submit(struct stub_device *sdev,
 				 struct usbip_header *pdu)
 {
 	int ret;
@@ -390,8 +391,7 @@ static void stub_recv_cmd_submit(struct stub_device *sdev,
 	struct libusb_device_handle *dev_handle = sdev->dev_handle;
 	unsigned char endpoint = pdu->base.ep;
 	unsigned char trx_type = stub_get_transfer_type(sdev, pdu->base.ep);
-	uint8_t trx_flags = stub_get_transfer_flags(
-					pdu->u.cmd_submit.transfer_flags);
+	uint8_t trx_flags = stub_get_transfer_flags(pdu->u.cmd_submit.transfer_flags);
 	int num_iso_packets = 0;
 	struct libusb_transfer *trx;
 	unsigned char *buf = NULL;
@@ -399,13 +399,13 @@ static void stub_recv_cmd_submit(struct stub_device *sdev,
 	int offset = 0;
 
 	if (trx_type > LIBUSB_TRANSFER_TYPE_MASK)
-		return;
+		return 0;
 	if (pdu->base.direction == USBIP_DIR_IN)
 		endpoint |= USB_DIR_IN;
 
 	priv = stub_priv_alloc(sdev, pdu);
 	if (!priv)
-		return;
+		return -1;
 
 	/* setup a urb */
 	if (trx_type == LIBUSB_TRANSFER_TYPE_ISOCHRONOUS)
@@ -413,8 +413,7 @@ static void stub_recv_cmd_submit(struct stub_device *sdev,
 	trx = libusb_alloc_transfer(num_iso_packets);
 	if (!trx) {
 		dev_err(sdev->dev, "malloc trx");
-		usbip_event_add(ud, SDEV_EVENT_ERROR_MALLOC);
-		return;
+		return -1;
 	}
 	priv->trx = trx;
 
@@ -430,8 +429,7 @@ static void stub_recv_cmd_submit(struct stub_device *sdev,
 	if (buflen > 0) {
 		buf = (unsigned char *)calloc(1, buflen);
 		if (!buf) {
-			usbip_event_add(ud, SDEV_EVENT_ERROR_MALLOC);
-			return;
+			return -1;
 		}
 	}
 
@@ -455,8 +453,7 @@ static void stub_recv_cmd_submit(struct stub_device *sdev,
         ret = usbip_net_recv(ud->sock_fd, trx->buffer + offset, trx->length - offset);
         if (ret != trx->length - offset) {
             dev_err(sdev->dev, "recv xbuf, %d", ret);
-            usbip_event_add(ud, SDEV_EVENT_ERROR_TCP);
-            return;
+            return -1;
         }
         if (usbip_dbg_flag_xmit) {
             dbg("recv xbuf ret %d size %d:", ret, trx->length - offset);
@@ -495,12 +492,13 @@ static void stub_recv_cmd_submit(struct stub_device *sdev,
 		 * Pessimistic.
 		 * This connection will be discarded.
 		 */
-		usbip_event_add(ud, SDEV_EVENT_ERROR_SUBMIT);
+        return -1;
 	}
+    return 0;
 }
 
 /* recv a pdu */
-static void stub_rx_pdu(struct usbip_device *ud)
+static int stub_rx_pdu(struct usbip_device *ud)
 {
 	int ret;
 	struct usbip_header pdu;
@@ -510,7 +508,6 @@ again:
 	memset(&pdu, 0, sizeof(pdu));
 
 	/* receive a pdu header */
-	//ret = usbip_recv(ud, &pdu, sizeof(pdu));
 	ret = usbip_net_recv(ud->sock_fd, &pdu, sizeof(pdu));
 
 	if (ret != sizeof(pdu)) {
@@ -519,8 +516,7 @@ again:
         } else {
 	        dev_info(sdev->dev, "disconnect from client");
 	    }
-		usbip_event_add(ud, SDEV_EVENT_ERROR_TCP);
-		return;
+		return -1;
 	}
 
 	usbip_header_correct_endian(&pdu, 0);
@@ -543,17 +539,18 @@ again:
 
 	switch (pdu.base.command) {
 	case USBIP_CMD_UNLINK:
-		stub_recv_cmd_unlink(sdev, &pdu);
+		ret = stub_recv_cmd_unlink(sdev, &pdu);
 		break;
 	case USBIP_CMD_SUBMIT:
-		stub_recv_cmd_submit(sdev, &pdu);
+		ret = stub_recv_cmd_submit(sdev, &pdu);
 		break;
 	default:
 		/* NOTREACHED */
 		dev_err(sdev->dev, "unknown pdu");
-		usbip_event_add(ud, SDEV_EVENT_ERROR_TCP);
+		ret = -1;
 		break;
 	}
+    return ret;
 }
 
 void *stub_rx_loop(void *data)
@@ -562,11 +559,12 @@ void *stub_rx_loop(void *data)
 	struct usbip_device *ud = &sdev->ud;
 
 	while (!stub_should_stop(sdev)) {
-		if (usbip_event_happened(ud))
-			break;
-
-		stub_rx_pdu(ud);
+		if (stub_rx_pdu(ud)) {
+            break;
+		}
 	}
+    sdev->should_stop = 1;
 	usbip_dbg_stub_rx("end of stub_rx_loop");
+
 	return NULL;
 }
